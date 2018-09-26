@@ -159,12 +159,13 @@ public final class BleManager {
     }
 
     /**
-     * Listen remote device notification by specific notification characteristic
+     * Listen remote device notification/indication by specific notification/indication
+     * characteristic
      *
      * @param device      remote device
-     * @param serviceUuid service uuid which the notification uuid belongs to
-     * @param notifyUuid  characteristic uuid that you wanna notify, note that
-     *                    the characteristic must support notification, or it
+     * @param serviceUuid service uuid which the notification or indication uuid belongs to
+     * @param notifyUuid  characteristic uuid that you wanna notify or indicate, note that
+     *                    the characteristic must support notification or indication, or it
      *                    will call back onFail()
      * @param callback    notification callback
      */
@@ -174,11 +175,11 @@ public final class BleManager {
     }
 
     /**
-     * cancel notification
+     * cancel notification/indication
      *
      * @param device             remote device
      * @param serviceUuid        service uuid
-     * @param characteristicUuid characteristic uuid you want to stop notifying
+     * @param characteristicUuid characteristic uuid you want to stop notifying or indicating
      */
     public void cancelNotify(BleDevice device, String serviceUuid, String characteristicUuid) {
         checkBleGatt();
@@ -298,7 +299,11 @@ public final class BleManager {
     }
 
     private void unregisterBleReciver() {
-        mContext.unregisterReceiver(BleReceiver.getInstance());
+        try {
+            mContext.unregisterReceiver(BleReceiver.getInstance());
+        } catch (Exception e) {
+            Logger.i("unregister BleReceiver encounter an exception: " + e.getMessage());
+        }
     }
 
     /**
@@ -312,10 +317,10 @@ public final class BleManager {
     }
 
     /**
-     * Turn on local bluetooth, calling the method will show user a request dialog
+     * Turn on local bluetooth, calling the method will show users a request dialog
      * to grant or reject,so you can get the result from Activity#onActivityResult()
      *
-     * @param activity    activity, note that to get the result wether user have granted
+     * @param activity    activity, note that to get the result wether users have granted
      *                    or rejected to enable bluetooth, you should handle the method
      *                    onActivityResult() of this activity
      * @param requestCode enable bluetooth request code
@@ -332,7 +337,7 @@ public final class BleManager {
     }
 
     /**
-     * Turn on or off local bluetooth directly without showing user a request
+     * Turn on or off local bluetooth directly without showing users a request
      * dialog.
      * Note that a request dialog may still show when you call this method, due to
      * some special Android devices' system may have been modified by manufacturers
