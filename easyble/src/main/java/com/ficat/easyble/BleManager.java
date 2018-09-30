@@ -74,7 +74,7 @@ public final class BleManager {
     }
 
     /**
-     * scan ble device
+     * Scan ble device
      */
     public void startScan(BleScanCallback callback) {
         checkBleScan();
@@ -82,8 +82,8 @@ public final class BleManager {
     }
 
     /**
-     * stop scaning device,I strongly recommand that you call this method after
-     * the target device has been discovered
+     * Stop scaning device, it's strongly recommended that you call this method
+     * to stop scaning after target device has been discovered
      */
     public void stopScan() {
         checkBleScan();
@@ -91,7 +91,7 @@ public final class BleManager {
     }
 
     /**
-     * connect to remote device
+     * Connect to the remote device
      */
     public void connect(BleDevice device, BleConnectCallback callback) {
         checkBleGatt();
@@ -99,7 +99,7 @@ public final class BleManager {
     }
 
     /**
-     * connect to remote device by address
+     * Connect to remote device by address
      */
     public void connect(String address, BleConnectCallback callback) {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
@@ -115,7 +115,7 @@ public final class BleManager {
     }
 
     /**
-     * disconnect from the remote device
+     * Disconnect from the remote device
      *
      * @param device remote device
      */
@@ -125,9 +125,10 @@ public final class BleManager {
     }
 
     /**
-     * disconnect from the remote device
+     * Disconnect from the remote device
      *
      * @param address remote device address
+     * @throws IllegalArgumentException if the address is invalid
      */
     public void disconnect(String address) {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
@@ -143,7 +144,7 @@ public final class BleManager {
     }
 
     /**
-     * disconnect all connected devices
+     * Disconnect all connected devices
      */
     public void disconnectAll() {
         checkBleGatt();
@@ -151,7 +152,7 @@ public final class BleManager {
     }
 
     /**
-     * get service information which the remote device supports
+     * Get service information which the remote device supports
      */
     public void queryServices(BleDevice device, BleQueryServicesCallback callback) {
         checkBleGatt();
@@ -175,7 +176,7 @@ public final class BleManager {
     }
 
     /**
-     * cancel notification/indication
+     * Cancel notification/indication
      *
      * @param device             remote device
      * @param serviceUuid        service uuid
@@ -187,13 +188,13 @@ public final class BleManager {
     }
 
     /**
-     * read data from specific readable characteristic
+     * Read data from specific readable characteristic
      *
      * @param device      remote device
      * @param serviceUuid service uuid that the readable characteristic belongs to
      * @param readUuid    characteristic uuid you wanna read, note that the characteristic
      *                    must be readable, or it will call back onFail()
-     * @param callback    read callback
+     * @param callback    the read callback
      */
     public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
         checkBleGatt();
@@ -201,14 +202,14 @@ public final class BleManager {
     }
 
     /**
-     * write data to remote device by specific writeable characteristic
+     * Write data to the remote device by specific writeable characteristic
      *
      * @param device      remote device
      * @param serviceUuid serivce uuid that the writeable characteristic belongs to
-     * @param writeUuid   characteristic uuid which you write data, note that the characteristic
-     *                    must be writeable, or it will call back onFail()
+     * @param writeUuid   characteristic uuid which you write data, note that the
+     *                    characteristic must be writeable, or it will call back onFail()
      * @param data        data
-     * @param callback    result call back
+     * @param callback    result callback
      */
     public void write(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                       BleWriteCallback callback) {
@@ -217,7 +218,8 @@ public final class BleManager {
     }
 
     /**
-     * write by batch.
+     * Write by batch, you can use this method to split data and deliver it to remote
+     * device by batch
      *
      * @param device           remote device
      * @param serviceUuid      serivce uuid that the writeable characteristic belongs to
@@ -225,7 +227,7 @@ public final class BleManager {
      *                         characteristic must be writeable, or it will call back onFail()
      * @param data             data
      * @param lengthPerPackage data length per package
-     * @param callback         result call back
+     * @param callback         result callback
      */
     public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                              int lengthPerPackage, BleWriteByBatchCallback callback) {
@@ -234,10 +236,10 @@ public final class BleManager {
     }
 
     /**
-     * read the remote device rssi(Received Signal Strength Indication)
+     * Read the remote device rssi(Received Signal Strength Indication)
      *
      * @param device   remote device
-     * @param callback read rssi callback
+     * @param callback result callback
      */
     public void readRssi(BleDevice device, BleRssiCallback callback) {
         checkBleGatt();
@@ -245,7 +247,7 @@ public final class BleManager {
     }
 
     /**
-     * set MTU (Maximum Transmission Unit)
+     * Set MTU (Maximum Transmission Unit)
      *
      * @param device   remote device
      * @param mtu      MTU value, rang from 23 to 512
@@ -257,7 +259,7 @@ public final class BleManager {
     }
 
     /**
-     * get connected devices list
+     * Get connected devices list
      *
      * @return connected devices list
      */
@@ -271,6 +273,7 @@ public final class BleManager {
      *
      * @param address device mac
      * @return true if local device has connected to the specific remote device
+     * @throws IllegalArgumentException if the address is invalid
      */
     public boolean isConnected(String address) {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
@@ -302,7 +305,7 @@ public final class BleManager {
         try {
             mContext.unregisterReceiver(BleReceiver.getInstance());
         } catch (Exception e) {
-            Logger.i("unregister BleReceiver encounter an exception: " + e.getMessage());
+            Logger.i("unregistering BleReceiver encounters an exception: " + e.getMessage());
         }
     }
 

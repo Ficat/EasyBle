@@ -590,7 +590,7 @@ public class BleGattImpl implements BleGatt {
         }
         mMtuCallbackMap.put(device.address, callback);
         BluetoothGatt gatt = mGattMap.get(device.address);
-        if (mtu <= 3) {
+        if (mtu < 23) {
             mtu = 23;
         }
         if (!gatt.requestMtu(mtu)) {
@@ -655,7 +655,7 @@ public class BleGattImpl implements BleGatt {
     private boolean checkConnection(final BleDevice device, final BleCallback callback) {
         checkNotNull(device, BleDevice.class);
         BluetoothGatt gatt = mGattMap.get(device.address);
-        if (gatt == null || !device.connected) {
+        if (gatt == null) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
