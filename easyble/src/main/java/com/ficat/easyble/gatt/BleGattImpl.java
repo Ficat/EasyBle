@@ -87,9 +87,9 @@ public class BleGattImpl implements BleGatt {
             final BleDevice device = entry.getKey();
             switch (newState) {
                 case BluetoothProfile.STATE_CONNECTED:
-                    //now we have connected this device, but only services this device support are
-                    //found can we perform some next operations like reading or writing
-                    //characteristic.As a result, we start discovering services,and we call back
+                    //now we have connected this device, but only services this device supports
+                    //are found can we perform some next operations like reading or writing
+                    //characteristic.As a result, we start discovering services, and call back
                     //BleConnectCallback#onConnected() as soon as services are found
                     gatt.discoverServices();
                     break;

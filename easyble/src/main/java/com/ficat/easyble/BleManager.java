@@ -30,7 +30,7 @@ import java.util.UUID;
 public final class BleManager {
     private Context mContext;
     private BluetoothAdapter mBluetoothAdapter;
-    private BleConfig mBleConfig;
+    private BleOptions mBleOptions;
     private volatile BleScan<BleScanCallback> mScan;
     private volatile BleGatt mGatt;
     private static volatile BleManager instance;
@@ -38,17 +38,20 @@ public final class BleManager {
     private final Object mLock1 = new Object();
     private final Object mLock2 = new Object();
 
-    private BleManager(Context context, BleConfig config) {
+    private BleManager(Context context, BleOptions options) {
         if (context == null) {
             throw new IllegalArgumentException("Context is null");
         }
-        if (config == null) {
-            config = new BleConfig();
+        if (context instanceof Activity) {
+            Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
+        }
+        if (options == null) {
+            options = new BleOptions();
         }
         this.mContext = context;
-        this.mBleConfig = config;
+        this.mBleOptions = options;
         this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        setLoggable(config.loggable);
+        setLoggable(options.loggable);
         registerBleReceiver();
     }
 
@@ -62,11 +65,11 @@ public final class BleManager {
         mContext.registerReceiver(BleReceiver.getInstance(), intentFilter);
     }
 
-    public static BleManager getInstance(Context context, BleConfig config) {
+    public static BleManager getInstance(Context context, BleOptions options) {
         if (instance == null) {
             synchronized (BleManager.class) {
                 if (instance == null) {
-                    instance = new BleManager(context, config);
+                    instance = new BleManager(context, options);
                 }
             }
         }
@@ -294,9 +297,11 @@ public final class BleManager {
     public void destroy() {
         if (mGatt != null) {
             mGatt.destroy();
+            mGatt = null;
         }
         if (mScan != null) {
             mScan.destroy();
+            mScan = null;
         }
         unregisterBleReciver();
     }
@@ -310,13 +315,14 @@ public final class BleManager {
     }
 
     /**
-     * Return true if this device support ble
+     * Return true if this device supports ble
      */
     public static boolean supportBle(Context context) {
         if (context == null) {
             throw new IllegalArgumentException("Context is null");
         }
-        return BluetoothAdapter.getDefaultAdapter() != null && context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
+        return BluetoothAdapter.getDefaultAdapter() != null &&
+                context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
     }
 
     /**
@@ -376,10 +382,10 @@ public final class BleManager {
             synchronized (mLock1) {
                 if (mScan == null) {
                     mScan = new BleScanner.Builder()
-                            .setScanPeriod(mBleConfig.scanPeriod)
-                            .setDeviceName(mBleConfig.scanDeviceName)
-                            .setDeviceAddress(mBleConfig.scanDeviceAddress)
-                            .setServiceUuids(mBleConfig.scanServiceUuids)
+                            .setScanPeriod(mBleOptions.scanPeriod)
+                            .setDeviceName(mBleOptions.scanDeviceName)
+                            .setDeviceAddress(mBleOptions.scanDeviceAddress)
+                            .setServiceUuids(mBleOptions.scanServiceUuids)
                             .build();
                 }
             }
@@ -391,7 +397,7 @@ public final class BleManager {
             synchronized (mLock2) {
                 if (mGatt == null) {
                     mGatt = new BleGattImpl.Builder(mContext)
-                            .setConnectTimeout(mBleConfig.connectTimeout)
+                            .setConnectTimeout(mBleOptions.connectTimeout)
                             .build();
                 }
             }
@@ -406,12 +412,12 @@ public final class BleManager {
             BleDevice bleDevice = (BleDevice) constructor.newInstance(device);
             return bleDevice;
         } catch (Exception e) {
-            Logger.i("encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
+            Logger.i("Encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
             return null;
         }
     }
 
-    public static final class BleConfig {
+    public static final class BleOptions {
         public int scanPeriod;
         public String scanDeviceName;
         public String scanDeviceAddress;

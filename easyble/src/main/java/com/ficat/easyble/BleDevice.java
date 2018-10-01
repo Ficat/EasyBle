@@ -16,7 +16,6 @@ public class BleDevice implements Serializable {
     public String address;
     public String name;
     private BluetoothDevice device;
-    private byte[] scanRecord;
 
     BleDevice(@NonNull BluetoothDevice device) {
         this.device = device;
@@ -31,7 +30,14 @@ public class BleDevice implements Serializable {
         return device;
     }
 
-    public byte[] getScanRecord() {
-        return scanRecord;
+    @Override
+    public String toString() {
+        return "BleDevice{" +
+                "connected=" + connected +
+                ", connecting=" + connecting +
+                ", address='" + address + '\'' +
+                ", name='" + name + '\'' +
+                ", device=" + device +
+                '}';
     }
 }
