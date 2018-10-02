@@ -1,47 +1,45 @@
 # EasyBle
-  EasyBle is a framework used for android BLE, this framework makes android Ble operation simpler and supports basic BLE operations, besides, it also support batch writing data and multi connection
+  EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度，使BLE开发更方便快捷。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
+
 
 
 ## Usage
- The framework uses BleManager to manager BLE
-### Some basic useful api in BleManager
-If you want to open bluetooth, I strongly recommend you call enableBluetooth() rather than toggleBluetooth(true), due to you can receive result message from Activity#onActivityResult if using enableBluetooth() to enable bluetooth
+ 本库主要通过BleManager类来进行BLE操作
+### BleManager中常用基础api
 ```java
-        //check if the device supports BLE
+        //是否支持BLE
         BleManager.supportBle(context);
 
-        //is Bluetooth turned on?
+        //蓝牙是否打开
         BleManager.isBluetoothOn();
         
-        //open or close bluetooth without showing users a request
-        //dialog, except some special android devices 
+        //打开或关闭蓝牙，不显示请求用户授权dialog（一些特殊设备如大部分国产手机除外）
         BleManager.toggleBluetooth(true); 
         
-        //open bluetooth with a request dialog, you must handle the 
-        //result in the method onActivityResult() of this activity
+        //显示dialog请求用户打开蓝牙，需在传入的activity的onActivityResult中处理请求结果
         BleManager.enableBluetooth(activity,requestCode);
 ```
 
-### Step
-### 1.Get ble manager
+### 步骤如下
+
+### 1.获取BleManager对象
 
 ```java
 
         BleManager.BleOptions options = new BleManager.BleOptions();
-        options.loggable = true; //does it print log?
-        options.connectTimeout = 10000; //connection time out
-        options.scanPeriod = 12000; //scan period
-        options.scanDeviceName = "deviceName"; 
-        options.scanDeviceAddress = "deviceAddress"; 
-        options.scanServiceUuids = serviceUuidArray; 
+        options.loggable = true; //是否打印日志
+        options.connectTimeout = 10000; //连接超时时间
+        options.scanPeriod = 12000; //扫描周期
+        options.scanDeviceName = "targetDeviceName"; //扫描的目标设备名
+        options.scanDeviceAddress = "targetDeviceAddress"; //扫描的目标设备地址
+        options.scanServiceUuids = serviceUuidArray; //扫描含该服务UUID的目标设备
         
-        //get ble manager
+        //获取管理器对象
         BleManager bleManager = BleManager.getInstance(this.getApplication(), options);
-
 ```
 
-### 2.Scan
-If sdk version >=23, scanning ble must have location permissions
+### 2.扫描
+安卓版本不小于6.0的，扫描必须要有定位权限
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
@@ -53,9 +51,9 @@ If sdk version >=23, scanning ble must have location permissions
             @Override
             public void onStart(boolean startScanSuccess, String info) {
                 if (startScanSuccess) {
-                    //start scan successfully
+                    //开始扫描成功
                 } else {
-                    //fail to start scan, you can see details from 'info'
+                    //未能成功开始扫描，可通过info查看详情
                     String failReason = info;
                 }
             }
@@ -67,23 +65,22 @@ If sdk version >=23, scanning ble must have location permissions
         });
 
 ```
-
-Once target remote device has been discovered you can use stopScan() to stop scanning
+当需要结束扫描时用以下方法结束扫描，建议在扫描到目标设备后停止扫描
 ```java
         bleManager.stopScan();
 ```
 
-### 3.Connect
-You can connect to remote device by device address or BleDevice object
+### 3.连接
+
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
             @Override
             public void onStart(boolean startConnectSuccess, String info, BleDevice device) {
                 if (startConnectSuccess) {
-                    //start to connect successfully
+                    //开始连接
                 } else {
-                    //fail to start connection, see details from 'info'
+                    //未能成功开始连接，可通过info查看详情
                     String failReason = info;
                 }
             }
@@ -104,29 +101,28 @@ You can connect to remote device by device address or BleDevice object
             }
         };
 
-       //connect to the remote device by BleDevice object 
+       //通过BleDevice对象连接设备
        bleManager.connect(bleDevice, bleConnectCallback);
 
-       //connect to the remote device by address
+       //直接通过mac地址连接
        bleManager.connect(address, bleConnectCallback)
 ```
 
-Use one of the following methods to disconnect from remote device
+当需要断开与设备的连接时可使用以下任一方法断开设备连接
 ```java
 
-       //disconnect from the specific remote device by BleDevice object
+       //断开与指定设备的连接
        bleManager.disconnect(bleDevice);
 	   
-       //disconnect from the specific remote device by address
+       //传入目标的mac地址断开与该设备的连接
        bleManager.disconnect(address);
 
-       //disconenct all connected devices
+       //断开所有已连接设备
        bleManager.disconnectAll();
 ```
 
-
 ### 4.Notify
-Both notification and indication use notify() to set notfication or indication
+notify和indicate都使用notify()方法
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
@@ -140,12 +136,12 @@ Both notification and indication use notify() to set notfication or indication
             }
         });
 ```
-When you want to cancel notification or indication, you can call cancelNotify()
+当需要取消notify或indicate时调用以下方法
 ```java
        bleManager.cancelNotify(bleDevice, notifyUuid);
 ```
 
-### 5.Write 
+### 5.写入特征数据
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
@@ -159,8 +155,7 @@ When you want to cancel notification or indication, you can call cancelNotify()
             }
         });
 ```
-
-if the data you wanna deliver to remote device is larger than MTU(default 20), you can use the following method to write by batch
+如果一次性写入的数据大于MTU即最大传输单元，则可以使用下列方法进行分批写入
 ```java
        bleManager.writeByBatch(bleDevice, serviceUuid, writeUuid, data, lengthPerPackage, new  BleWriteByBatchCallback() {
             @Override
@@ -176,36 +171,35 @@ if the data you wanna deliver to remote device is larger than MTU(default 20), y
 ```
 
 ### 6.Destroy
-You must call destroy() to release some resources after BLE communication end
+当结束BLE通信时必须调用destroy方法以释放资源
 ```java
        bleManager.destroy();
 
 ```
 
-### Other api
+### 其他api
 ```java
-
-       //get service infomations which the remote supports,it may return
-       //null if the remote device is not connected
+       //获取设备支持的服务信息，如果设备尚未连接上则返回值为null
        bleManager.getDeviceServices(bleDevice);
 
-       //read characteristic data
-       bleManager.read(bleDevice, serviceUuid, readUuid, bleReadCallback);
-
     
-       //read the remote device's rssi
+       //读取已连接的远程设备信号
        bleManager.readRssi(bleDevice, bleRssiCallback);
 
 
-       //set mtu
+       //设置MTU
        bleManager.setMtu(bleDevice, mtu, bleMtuCallback);
 
 
-       //get a list of current connected devices 
+       //读取特征数据
+       bleManager.read(bleDevice, serviceUuid, readUuid, bleReadCallback);
+
+
+       //获取当前连接的设备
        bleManager.getConnectedDevices(); 
 
 
-       //check if the local bluetooth has connected to the remote device
+       //判断是否已连接上某台设备
        bleManager.isConnected(address);
 
 ```

@@ -345,7 +345,7 @@ public class BleGattImpl implements BleGatt {
         BluetoothGatt gatt = mGattMap.get(device.address);
         if (gatt != null) {
             gatt.disconnect();
-            refreshDeviceCache(gatt);
+//            refreshDeviceCache(gatt);
             gatt.close();
             //remove connection timeout message if a connection attempt currently is in progress
             mHandler.removeCallbacksAndMessages(device.address);
@@ -358,7 +358,7 @@ public class BleGattImpl implements BleGatt {
         for (BluetoothGatt gatt : mGattMap.values()) {
             if (gatt != null) {
                 gatt.disconnect();
-                refreshDeviceCache(gatt);
+//                refreshDeviceCache(gatt);
                 gatt.close();
                 //remove connection timeout message if a connection attempt currently is in progress
                 mHandler.removeCallbacksAndMessages(gatt.getDevice().getAddress());
