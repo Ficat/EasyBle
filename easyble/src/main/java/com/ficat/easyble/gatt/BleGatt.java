@@ -2,16 +2,18 @@ package com.ficat.easyble.gatt;
 
 
 import com.ficat.easyble.BleDevice;
+import com.ficat.easyble.gatt.bean.CharacteristicInfo;
+import com.ficat.easyble.gatt.bean.ServiceInfo;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
-import com.ficat.easyble.gatt.callback.BleQueryServicesCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
 import com.ficat.easyble.gatt.callback.BleWriteCallback;
 
 import java.util.List;
+import java.util.Map;
 
 public interface BleGatt {
     void connect(BleDevice device, BleConnectCallback callback);
@@ -19,8 +21,6 @@ public interface BleGatt {
     void disconnect(BleDevice device);
 
     void disconnectAll();
-
-    void queryServices(BleDevice device, BleQueryServicesCallback callback);
 
     void notify(BleDevice device, String serviceUuid, String notifyUuid, BleNotifyCallback callback);
 
@@ -37,6 +37,8 @@ public interface BleGatt {
     void setMtu(BleDevice device, int mtu, BleMtuCallback callback);
 
     List<BleDevice> getConnectedDevices();
+
+    Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device);
 
     void destroy();
 }

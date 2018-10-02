@@ -11,10 +11,11 @@ import android.content.pm.PackageManager;
 
 import com.ficat.easyble.gatt.BleGatt;
 import com.ficat.easyble.gatt.BleGattImpl;
+import com.ficat.easyble.gatt.bean.CharacteristicInfo;
+import com.ficat.easyble.gatt.bean.ServiceInfo;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
-import com.ficat.easyble.gatt.callback.BleQueryServicesCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
@@ -25,6 +26,7 @@ import com.ficat.easyble.scan.BleScanner;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class BleManager {
@@ -155,14 +157,6 @@ public final class BleManager {
     }
 
     /**
-     * Get service information which the remote device supports
-     */
-    public void queryServices(BleDevice device, BleQueryServicesCallback callback) {
-        checkBleGatt();
-        mGatt.queryServices(device, callback);
-    }
-
-    /**
      * Listen remote device notification/indication by specific notification/indication
      * characteristic
      *
@@ -188,20 +182,6 @@ public final class BleManager {
     public void cancelNotify(BleDevice device, String serviceUuid, String characteristicUuid) {
         checkBleGatt();
         mGatt.cancelNotify(device, serviceUuid, characteristicUuid);
-    }
-
-    /**
-     * Read data from specific readable characteristic
-     *
-     * @param device      remote device
-     * @param serviceUuid service uuid that the readable characteristic belongs to
-     * @param readUuid    characteristic uuid you wanna read, note that the characteristic
-     *                    must be readable, or it will call back onFail()
-     * @param callback    the read callback
-     */
-    public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
-        checkBleGatt();
-        mGatt.read(device, serviceUuid, readUuid, callback);
     }
 
     /**
@@ -239,6 +219,20 @@ public final class BleManager {
     }
 
     /**
+     * Read data from specific readable characteristic
+     *
+     * @param device      remote device
+     * @param serviceUuid service uuid that the readable characteristic belongs to
+     * @param readUuid    characteristic uuid you wanna read, note that the characteristic
+     *                    must be readable, or it will call back onFail()
+     * @param callback    the read callback
+     */
+    public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
+        checkBleGatt();
+        mGatt.read(device, serviceUuid, readUuid, callback);
+    }
+
+    /**
      * Read the remote device rssi(Received Signal Strength Indication)
      *
      * @param device   remote device
@@ -259,6 +253,17 @@ public final class BleManager {
     public void setMtu(BleDevice device, int mtu, BleMtuCallback callback) {
         checkBleGatt();
         mGatt.setMtu(device, mtu, callback);
+    }
+
+    /**
+     * Get service information which the remote device supports.
+     * Note that this method will return null if this device is not connected
+     *
+     * @return service infomations,
+     */
+    public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
+        checkBleGatt();
+        return mGatt.getDeviceServices(device);
     }
 
     /**

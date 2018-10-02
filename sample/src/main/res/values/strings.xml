@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">EasyBle</string>
+
+    <string name="start_scan">Scan</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="notify">Notify or Indicate</string>
+    <string name="read_rssi">Read RSSI</string>
+    <string name="set_mtu">Set MTU</string>
+    <string name="write">Write</string>
+    <string name="write_by_batch">Write by batch</string>
 </resources>

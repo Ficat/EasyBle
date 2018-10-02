@@ -24,7 +24,6 @@ import com.ficat.easyble.gatt.callback.BleCallback;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
-import com.ficat.easyble.gatt.callback.BleQueryServicesCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
@@ -267,7 +266,7 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onStart(false, "Turn on bluetooth before starting to connect device", device);
+                    callback.onStart(false, "Turn on bluetooth before starting connecting device", device);
                 }
             });
             return;
@@ -352,21 +351,6 @@ public class BleGattImpl implements BleGatt {
             refreshDeviceCache(gatt);
             gatt.close();
         }
-    }
-
-    @Override
-    public void queryServices(final BleDevice device, final BleQueryServicesCallback callback) {
-        checkNotNull(callback, BleQueryServicesCallback.class);
-        if (!checkConnection(device, callback)) {
-            return;
-        }
-        final Map<ServiceInfo, List<CharacteristicInfo>> serviceInfo = mServicesMap.get(device.address);
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                callback.onQueryServices(serviceInfo, device);
-            }
-        });
     }
 
     @Override
@@ -614,6 +598,14 @@ public class BleGattImpl implements BleGatt {
     }
 
     @Override
+    public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
+        if (device == null || !mGattMap.containsKey(device.address)) {
+            return null;
+        }
+        return mServicesMap.get(device.address);
+    }
+
+    @Override
     public void destroy() {
         mHandler.removeCallbacksAndMessages(null);
         disconnectAndCloseAll();
@@ -654,8 +646,7 @@ public class BleGattImpl implements BleGatt {
 
     private boolean checkConnection(final BleDevice device, final BleCallback callback) {
         checkNotNull(device, BleDevice.class);
-        BluetoothGatt gatt = mGattMap.get(device.address);
-        if (gatt == null) {
+        if (!mGattMap.containsKey(device.address)) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
