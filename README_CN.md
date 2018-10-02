@@ -1,7 +1,19 @@
 # EasyBle
   EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度，使BLE开发更方便快捷。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
 
+## Gradle dependency
+```gradle
+allprojects {
+    repositories {
+	    maven { url 'https://jitpack.io' }
+    }
+}
 
+
+dependencies {
+    implementation 'com.github.Ficat:EasyBle:v1.0.0'
+}
+```
 
 ## Usage
  本库主要通过BleManager类来进行BLE操作
@@ -122,7 +134,7 @@
 ```
 
 ### 4.Notify
-notify和indicate都使用notify()方法
+notify和indicate都使用以下方法
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
@@ -155,7 +167,7 @@ notify和indicate都使用notify()方法
             }
         });
 ```
-如果一次性写入的数据大于MTU即最大传输单元，则可以使用下列方法进行分批写入
+如果一次性写入的数据长度大于MTU即最大传输单元（默认是20字节），则可以使用下列方法进行分批写入
 ```java
        bleManager.writeByBatch(bleDevice, serviceUuid, writeUuid, data, lengthPerPackage, new  BleWriteByBatchCallback() {
             @Override

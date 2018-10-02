@@ -1,6 +1,20 @@
 # EasyBle
   EasyBle is a framework used for android BLE, this framework makes android Ble operation simpler and supports basic BLE operations, besides, it also support batch writing data and multi connection
 
+[中文文档](https://github.com/Ficat/EasyBle/blob/master/README_CN.md)
+
+## Gradle dependency
+```gradle
+allprojects {
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+dependencies {
+    implementation 'com.github.Ficat:EasyBle:v1.0.0'
+}
+```
 
 ## Usage
  The framework uses BleManager to manager BLE
@@ -126,7 +140,7 @@ Use one of the following methods to disconnect from remote device
 
 
 ### 4.Notify
-Both notification and indication use notify() to set notfication or indication
+Both notification and indication use the following method to set notfication or indication
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
@@ -160,7 +174,7 @@ When you want to cancel notification or indication, you can call cancelNotify()
         });
 ```
 
-if the data you wanna deliver to remote device is larger than MTU(default 20), you can use the following method to write by batch
+if the length of the data you wanna deliver to remote device is larger than MTU(default 20), you can use the following method to write by batch
 ```java
        bleManager.writeByBatch(bleDevice, serviceUuid, writeUuid, data, lengthPerPackage, new  BleWriteByBatchCallback() {
             @Override
