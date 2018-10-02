@@ -31,7 +31,7 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +57,7 @@ public class BleGattImpl implements BleGatt {
     private Map<UuidIdentify, BleNotifyCallback> mNotifyCallbackMap;
     private Map<UuidIdentify, BleReadCallback> mReadCallbackMap;
     private Map<UuidIdentify, BleWriteCallback> mWrtieCallbackMap;
+    private List<String> mConnectedDevices;
 
     private BleGattImpl(@NonNull Context context, int connectTimeout) {
         mContext = context;
@@ -70,6 +71,7 @@ public class BleGattImpl implements BleGatt {
         mRssiCallbackMap = new ConcurrentHashMap<>();
         mGattMap = new ConcurrentHashMap<>();
         mServicesMap = new ConcurrentHashMap<>();
+        mConnectedDevices = Collections.synchronizedList(new ArrayList<String>());
     }
 
     private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
@@ -86,16 +88,14 @@ public class BleGattImpl implements BleGatt {
             final BleDevice device = entry.getKey();
             switch (newState) {
                 case BluetoothProfile.STATE_CONNECTED:
-                    //now we have connected this device, but only services this device supports
-                    //are found can we perform some next operations like reading or writing
-                    //characteristic.As a result, we start discovering services, and call back
-                    //BleConnectCallback#onConnected() as soon as services are found
+                    //start discovering services, only services are found do we deem
+                    //connection is successful
                     gatt.discoverServices();
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
                     device.connected = false;
                     close(device);
-                    removeDeviceCallback(device);
+                    removeDevice(device);
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -138,7 +138,9 @@ public class BleGattImpl implements BleGatt {
             }
             mServicesMap.put(address, servicesInfoMap);
 
-            mGattMap.put(address, gatt);
+            if (!mConnectedDevices.contains(address)) {
+                mConnectedDevices.add(address);
+            }
 
             final BleConnectCallback callback = entry.getValue();
             final BleDevice device = entry.getKey();
@@ -266,7 +268,8 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onStart(false, "Turn on bluetooth before starting connecting device", device);
+                    callback.onStart(false,
+                            "Turn on bluetooth before starting connecting device", device);
                 }
             });
             return;
@@ -277,7 +280,8 @@ public class BleGattImpl implements BleGatt {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        callback.onStart(false, "The master device is connecting to this device", d);
+                        callback.onStart(false,
+                                "The master device is connecting to this device", d);
                     }
                 });
                 return;
@@ -286,7 +290,8 @@ public class BleGattImpl implements BleGatt {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        callback.onStart(false, "The master device has already connected to this device", d);
+                        callback.onStart(false,
+                                "The master device has already connected to this device", d);
                     }
                 });
                 return;
@@ -301,6 +306,7 @@ public class BleGattImpl implements BleGatt {
 
         if (gatt != null) {
             device.connecting = true;
+            mGattMap.put(device.address, gatt);
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -313,7 +319,7 @@ public class BleGattImpl implements BleGatt {
                 @Override
                 public void run() {
                     device.connecting = false;
-                    gatt.close();
+                    close(device);
                     if (callback != null) {
                         callback.onTimeout(device);
                     }
@@ -341,16 +347,24 @@ public class BleGattImpl implements BleGatt {
             gatt.disconnect();
             refreshDeviceCache(gatt);
             gatt.close();
+            //remove connection timeout message if a connection attempt currently is in progress
+            mHandler.removeCallbacksAndMessages(device.address);
+            mGattMap.remove(device.address);
         }
     }
 
     @Override
     public void disconnectAll() {
         for (BluetoothGatt gatt : mGattMap.values()) {
-            gatt.disconnect();
-            refreshDeviceCache(gatt);
-            gatt.close();
+            if (gatt != null) {
+                gatt.disconnect();
+                refreshDeviceCache(gatt);
+                gatt.close();
+                //remove connection timeout message if a connection attempt currently is in progress
+                mHandler.removeCallbacksAndMessages(gatt.getDevice().getAddress());
+            }
         }
+        mGattMap.clear();
     }
 
     @Override
@@ -379,7 +393,8 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFail(BleCallback.FAIL_OTHER, "this characteristic doesn't support notification or indication", device);
+                    callback.onFail(BleCallback.FAIL_OTHER,
+                            "this characteristic doesn't support notification or indication", device);
                 }
             });
             return;
@@ -484,7 +499,8 @@ public class BleGattImpl implements BleGatt {
     }
 
     @Override
-    public void writeByBatch(BleDevice device, final String serviceUuid, final String writeUuid, final byte[] writedData, final int lengthPerPackage, final BleWriteByBatchCallback callback) {
+    public void writeByBatch(BleDevice device, final String serviceUuid, final String writeUuid,
+                             final byte[] writedData, final int lengthPerPackage, final BleWriteByBatchCallback callback) {
         checkNotNull(callback, BleWriteByBatchCallback.class);
         final List<byte[]> byteList = getBatchData(writedData, lengthPerPackage);
         BleWriteCallback writeCallback = new BleWriteCallback() {
@@ -590,7 +606,7 @@ public class BleGattImpl implements BleGatt {
     @Override
     public List<BleDevice> getConnectedDevices() {
         List<BleDevice> deviceList = new ArrayList<>();
-        for (String address : mGattMap.keySet()) {
+        for (String address : mConnectedDevices) {
             BleDevice d = getBleDeviceFromMap(address, mConnectCallbackMap);
             deviceList.add(d);
         }
@@ -599,7 +615,7 @@ public class BleGattImpl implements BleGatt {
 
     @Override
     public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
-        if (device == null || !mGattMap.containsKey(device.address)) {
+        if (device == null) {
             return null;
         }
         return mServicesMap.get(device.address);
@@ -608,7 +624,7 @@ public class BleGattImpl implements BleGatt {
     @Override
     public void destroy() {
         mHandler.removeCallbacksAndMessages(null);
-        disconnectAndCloseAll();
+        disconnectAll();
         clearAllCallbacks();
     }
 
@@ -623,20 +639,6 @@ public class BleGattImpl implements BleGatt {
         }
     }
 
-    private void disconnectAndCloseAll() {
-        if (mGattMap == null) {
-            return;
-        }
-        Collection<BluetoothGatt> gatts = mGattMap.values();
-        for (BluetoothGatt g : gatts) {
-            if (g != null) {
-                g.disconnect();
-                refreshDeviceCache(g);
-                g.close();
-            }
-        }
-    }
-
     private void checkNotNull(Object object, Class<?> clasz) {
         if (object == null) {
             String claszSimpleName = clasz.getSimpleName();
@@ -646,7 +648,7 @@ public class BleGattImpl implements BleGatt {
 
     private boolean checkConnection(final BleDevice device, final BleCallback callback) {
         checkNotNull(device, BleDevice.class);
-        if (!mGattMap.containsKey(device.address)) {
+        if (!mConnectedDevices.contains(device.address)) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -659,7 +661,8 @@ public class BleGattImpl implements BleGatt {
         return true;
     }
 
-    private boolean checkUuid(String serviceUuid, String charUuid, BluetoothGatt gatt, final BleDevice device, final BleCallback callback) {
+    private boolean checkUuid(String serviceUuid, String charUuid, BluetoothGatt gatt,
+                              final BleDevice device, final BleCallback callback) {
         BluetoothGattService service = gatt.getService(UUID.fromString(serviceUuid));
         if (service == null) {
             mHandler.post(new Runnable() {
@@ -706,7 +709,8 @@ public class BleGattImpl implements BleGatt {
         return null;
     }
 
-    private <T> UuidIdentify getUuidIdentifyFromMap(Map<UuidIdentify, T> map, String address, String serviceUuid, String characteristicUuid) {
+    private <T> UuidIdentify getUuidIdentifyFromMap(Map<UuidIdentify, T> map, String address,
+                                                    String serviceUuid, String characteristicUuid) {
         if (TextUtils.isEmpty(address) || TextUtils.isEmpty(serviceUuid) || TextUtils.isEmpty(characteristicUuid)) {
             return null;
         }
@@ -720,12 +724,13 @@ public class BleGattImpl implements BleGatt {
         return null;
     }
 
-    private void removeDeviceCallback(BleDevice device) {
+    private void removeDevice(BleDevice device) {
         mConnectCallbackMap.remove(device);
         mMtuCallbackMap.remove(device.address);
         mRssiCallbackMap.remove(device.address);
         mGattMap.remove(device.address);
         mServicesMap.remove(device.address);
+        mConnectedDevices.remove(device.address);
         removeUuidIdentifyMap(device.address, mReadCallbackMap);
         removeUuidIdentifyMap(device.address, mWrtieCallbackMap);
         removeUuidIdentifyMap(device.address, mNotifyCallbackMap);
@@ -748,6 +753,7 @@ public class BleGattImpl implements BleGatt {
         mRssiCallbackMap.clear();
         mGattMap.clear();
         mServicesMap.clear();
+        mConnectedDevices.clear();
     }
 
     /**

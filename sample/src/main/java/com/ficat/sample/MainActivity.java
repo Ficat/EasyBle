@@ -40,8 +40,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final static int CHARACTERISTIC_WRITEABLE = 102;
     private final static int CHARACTERISTIC_NOTIFICATION = 103;
 
-    private Button btnScan, btnDisconnect, btnNotify, btnWirte,
-            btnReadRssi, btnMtu;
     private RecyclerView rv;
     private BleManager manager;
     private List<BleDevice> deviceList = new ArrayList<>();
@@ -57,12 +55,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initView() {
-        btnScan = findViewById(R.id.btn_scan);
-        btnDisconnect = findViewById(R.id.btn_disconnect);
-        btnNotify = findViewById(R.id.btn_notify);
-        btnWirte = findViewById(R.id.btn_write);
-        btnReadRssi = findViewById(R.id.btn_read_rssi);
-        btnMtu = findViewById(R.id.btn_mtu);
+        Button btnScan = findViewById(R.id.btn_scan);
+        Button btnDisconnect = findViewById(R.id.btn_disconnect);
+        Button btnNotify = findViewById(R.id.btn_notify);
+        Button btnWirte = findViewById(R.id.btn_write);
+        Button btnReadRssi = findViewById(R.id.btn_read_rssi);
+        Button btnMtu = findViewById(R.id.btn_mtu);
         rv = findViewById(R.id.rv);
 
         btnScan.setOnClickListener(this);
@@ -192,8 +190,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onStart(boolean startScanSuccess, String info) {
-                Log.e(TAG, "start scan = " + startScanSuccess +
-                        "    info: " + info);
+                Log.e(TAG, "start scan = " + startScanSuccess + "   info: " + info);
+                if (startScanSuccess){
+                    deviceList.clear();
+                    adapter.notifyDataSetChanged();
+                }
             }
 
             @Override
