@@ -149,6 +149,11 @@ Both notification and indication use the following method to set notfication or 
             }
 
             @Override
+            public void onNotifySuccess(BleDevice device) {
+
+            }
+
+            @Override
             public void onFail(int failCode, String info, BleDevice device) {
              
             }

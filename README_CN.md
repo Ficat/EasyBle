@@ -141,6 +141,11 @@ notify和indicate都使用以下方法
             public void onCharacteristicChanged(byte[] data, BleDevice device) {
               
             }
+            
+            @Override
+            public void onNotifySuccess(BleDevice device) {
+
+            }
 
             @Override
             public void onFail(int failCode, String info, BleDevice device) {

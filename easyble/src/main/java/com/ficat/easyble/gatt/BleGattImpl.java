@@ -228,6 +228,30 @@ public class BleGattImpl implements BleGatt {
         }
 
         @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorWrite(gatt, descriptor, status);
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                String address = gatt.getDevice().getAddress();
+                String serviceUuid = descriptor.getCharacteristic().getService().getUuid().toString();
+                String characteristicUuid = descriptor.getCharacteristic().getUuid().toString();
+                UuidIdentify identify = getUuidIdentifyFromMap(mNotifyCallbackMap, address, serviceUuid, characteristicUuid);
+                if (identify == null) {
+                    return;
+                }
+                final BleNotifyCallback callback = mNotifyCallbackMap.get(identify);
+                final BleDevice device = getBleDeviceFromMap(address, mConnectCallbackMap);
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (callback != null) {
+                            callback.onNotifySuccess(device);
+                        }
+                    }
+                });
+            }
+        }
+
+        @Override
         public void onReadRemoteRssi(BluetoothGatt gatt, final int rssi, int status) {
             super.onReadRemoteRssi(gatt, rssi, status);
             String address = gatt.getDevice().getAddress();

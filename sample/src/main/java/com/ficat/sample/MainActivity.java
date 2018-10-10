@@ -191,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onStart(boolean startScanSuccess, String info) {
                 Log.e(TAG, "start scan = " + startScanSuccess + "   info: " + info);
-                if (startScanSuccess){
+                if (startScanSuccess) {
                     deviceList.clear();
                     adapter.notifyDataSetChanged();
                 }
@@ -279,11 +279,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         BleDevice device = manager.getConnectedDevices().get(0);
         //randomly finding a characteristic supporting notification to test
         Map<String, String> notificationInfo = getSpecificServiceInfo(device, CHARACTERISTIC_NOTIFICATION);
-        for (Map.Entry<String, String> e : notificationInfo.entrySet()) {
+        for (final Map.Entry<String, String> e : notificationInfo.entrySet()) {
             manager.notify(device, e.getKey(), e.getValue(), new BleNotifyCallback() {
                 @Override
                 public void onCharacteristicChanged(byte[] data, BleDevice device) {
                     Toast.makeText(MainActivity.this, "receive notification data" + new String(data), Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onNotifySuccess(BleDevice device) {
+                    Log.e(TAG, "notify succcess: " + e.getValue());
                 }
 
                 @Override

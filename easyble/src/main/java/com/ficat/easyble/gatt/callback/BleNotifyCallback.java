@@ -5,4 +5,6 @@ import com.ficat.easyble.BleDevice;
 
 public interface BleNotifyCallback extends BleCallback {
     void onCharacteristicChanged(byte[] data, BleDevice device);
+
+    void onNotifySuccess(BleDevice device);
 }
