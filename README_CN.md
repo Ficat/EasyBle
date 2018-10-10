@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v1.0.0'
+    implementation 'com.github.Ficat:EasyBle:v1.0.1'
 }
 ```
 
@@ -198,7 +198,7 @@ notify和indicate都使用以下方法
 ```java
        //获取设备支持的服务信息，如果设备尚未连接上则返回值为null
        bleManager.getDeviceServices(bleDevice);
-       //可以通过该方法获取所有服务（含其包含的特征等）信息
+
        Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
        if (serviceInfoMap != null){
            for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {

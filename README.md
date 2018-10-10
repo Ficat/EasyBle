@@ -12,7 +12,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v1.0.0'
+    implementation 'com.github.Ficat:EasyBle:v1.0.1'
 }
 ```
 
@@ -207,7 +207,7 @@ You must call destroy() to release some resources after BLE communication end
        //get service infomations which the remote supports,it may return
        //null if the remote device is not connected
        bleManager.getDeviceServices(bleDevice);
-       //you can see detail service infomations by this method
+
        Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
        if (serviceInfoMap != null){
            for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {
