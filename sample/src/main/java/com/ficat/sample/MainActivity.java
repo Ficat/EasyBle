@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //open bluetooth without a request dialog
         BleManager.toggleBluetooth(true);
 
-        BleManager.BleOptions options = new BleManager.BleOptions();
+        BleManager.Options options = new BleManager.Options();
         options.loggable = true;
         options.scanPeriod = 10000;
         options.connectTimeout = 10000;

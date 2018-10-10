@@ -31,8 +31,8 @@ If you want to open bluetooth, I strongly recommend you call enableBluetooth() r
         //dialog, except some special android devices 
         BleManager.toggleBluetooth(true); 
         
-        //open bluetooth with a request dialog, you must handle the 
-        //result in the method onActivityResult() of this activity
+        //open bluetooth with a request dialog, you can receive the
+        //result from the method onActivityResult() of this activity
         BleManager.enableBluetooth(activity,requestCode);
 ```
 
@@ -41,12 +41,12 @@ If you want to open bluetooth, I strongly recommend you call enableBluetooth() r
 
 ```java
 
-        BleManager.BleOptions options = new BleManager.BleOptions();
+        BleManager.Options options = new BleManager.Options();
         options.loggable = true; //does it print log?
         options.connectTimeout = 10000; //connection time out
         options.scanPeriod = 12000; //scan period
         options.scanDeviceName = "deviceName"; 
-        options.scanDeviceAddress = "deviceAddress"; 
+        options.scanDeviceAddress = "deviceAddress";//like "DD:0D:30:00:0D:9B"
         options.scanServiceUuids = serviceUuidArray; 
         
         //get ble manager
@@ -202,6 +202,22 @@ You must call destroy() to release some resources after BLE communication end
        //get service infomations which the remote supports,it may return
        //null if the remote device is not connected
        bleManager.getDeviceServices(bleDevice);
+       //you can see detail service infomations by this method
+       Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
+       if (serviceInfoMap != null){
+           for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {
+               ServiceInfo serviceInfo = entry.getKey();
+               Log.e("TAG", "service uuid: " + serviceInfo.uuid);
+               for (CharacteristicInfo characterInfo : entry.getValue()) {
+                   Log.e("TAG", "chracteristic uuid: " + characterInfo.uuid);
+                   boolean readable = characterInfo.readable;
+                   boolean writeable = characterInfo.writeable;
+                   boolean notification = characterInfo.notify;
+                   boolean indicative = characterInfo.indicative;
+               }
+           }
+       }
+
 
        //read characteristic data
        bleManager.read(bleDevice, serviceUuid, readUuid, bleReadCallback);

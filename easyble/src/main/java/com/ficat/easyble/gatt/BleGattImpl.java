@@ -389,7 +389,7 @@ public class BleGattImpl implements BleGatt {
         BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(notifyUuid));
         boolean notify = (characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0;
         boolean indicate = (characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) > 0;
-        if (!notify &&!indicate) {
+        if (!notify && !indicate) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {

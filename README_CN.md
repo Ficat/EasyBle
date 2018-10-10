@@ -1,5 +1,5 @@
 # EasyBle
-  EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度，使BLE开发更方便快捷。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
+  EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
 
 ## Gradle dependency
 ```gradle
@@ -38,12 +38,12 @@ dependencies {
 
 ```java
 
-        BleManager.BleOptions options = new BleManager.BleOptions();
+        BleManager.Options options = new BleManager.Options();
         options.loggable = true; //是否打印日志
         options.connectTimeout = 10000; //连接超时时间
         options.scanPeriod = 12000; //扫描周期
         options.scanDeviceName = "targetDeviceName"; //扫描的目标设备名
-        options.scanDeviceAddress = "targetDeviceAddress"; //扫描的目标设备地址
+        options.scanDeviceAddress = "targetDeviceAddress"; //扫描目标设备地址如"DD:0D:30:00:0D:9B"
         options.scanServiceUuids = serviceUuidArray; //扫描含该服务UUID的目标设备
         
         //获取管理器对象
@@ -193,6 +193,21 @@ notify和indicate都使用以下方法
 ```java
        //获取设备支持的服务信息，如果设备尚未连接上则返回值为null
        bleManager.getDeviceServices(bleDevice);
+       //可以通过该方法获取所有服务（含其包含的特征等）信息
+       Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
+       if (serviceInfoMap != null){
+           for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {
+               ServiceInfo serviceInfo = entry.getKey();
+               Log.e("TAG", "service uuid: " + serviceInfo.uuid);
+               for (CharacteristicInfo characterInfo : entry.getValue()) {
+                   Log.e("TAG", "chracteristic uuid: " + characterInfo.uuid);
+                   boolean readable = characterInfo.readable;
+                   boolean writeable = characterInfo.writeable;
+                   boolean notification = characterInfo.notify;
+                   boolean indicative = characterInfo.indicative;
+               }
+           }
+       }
 
     
        //读取已连接的远程设备信号

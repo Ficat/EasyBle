@@ -32,7 +32,7 @@ import java.util.UUID;
 public final class BleManager {
     private Context mContext;
     private BluetoothAdapter mBluetoothAdapter;
-    private BleOptions mBleOptions;
+    private Options mOptions;
     private volatile BleScan<BleScanCallback> mScan;
     private volatile BleGatt mGatt;
     private static volatile BleManager instance;
@@ -40,7 +40,7 @@ public final class BleManager {
     private final Object mLock1 = new Object();
     private final Object mLock2 = new Object();
 
-    private BleManager(Context context, BleOptions options) {
+    private BleManager(Context context, Options options) {
         if (context == null) {
             throw new IllegalArgumentException("Context is null");
         }
@@ -48,10 +48,10 @@ public final class BleManager {
             Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
         }
         if (options == null) {
-            options = new BleOptions();
+            options = new Options();
         }
         this.mContext = context;
-        this.mBleOptions = options;
+        this.mOptions = options;
         this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         setLoggable(options.loggable);
         registerBleReceiver();
@@ -67,7 +67,7 @@ public final class BleManager {
         mContext.registerReceiver(BleReceiver.getInstance(), intentFilter);
     }
 
-    public static BleManager getInstance(Context context, BleOptions options) {
+    public static BleManager getInstance(Context context, Options options) {
         if (instance == null) {
             synchronized (BleManager.class) {
                 if (instance == null) {
@@ -387,10 +387,10 @@ public final class BleManager {
             synchronized (mLock1) {
                 if (mScan == null) {
                     mScan = new BleScanner.Builder()
-                            .setScanPeriod(mBleOptions.scanPeriod)
-                            .setDeviceName(mBleOptions.scanDeviceName)
-                            .setDeviceAddress(mBleOptions.scanDeviceAddress)
-                            .setServiceUuids(mBleOptions.scanServiceUuids)
+                            .setScanPeriod(mOptions.scanPeriod)
+                            .setDeviceName(mOptions.scanDeviceName)
+                            .setDeviceAddress(mOptions.scanDeviceAddress)
+                            .setServiceUuids(mOptions.scanServiceUuids)
                             .build();
                 }
             }
@@ -402,7 +402,7 @@ public final class BleManager {
             synchronized (mLock2) {
                 if (mGatt == null) {
                     mGatt = new BleGattImpl.Builder(mContext)
-                            .setConnectTimeout(mBleOptions.connectTimeout)
+                            .setConnectTimeout(mOptions.connectTimeout)
                             .build();
                 }
             }
@@ -422,7 +422,7 @@ public final class BleManager {
         }
     }
 
-    public static final class BleOptions {
+    public static final class Options {
         public int scanPeriod;
         public String scanDeviceName;
         public String scanDeviceAddress;
