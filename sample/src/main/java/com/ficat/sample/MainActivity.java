@@ -287,8 +287,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
 
                 @Override
-                public void onNotifySuccess(BleDevice device) {
-                    Log.e(TAG, "notify succcess: " + e.getValue());
+                public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
+                    Log.e(TAG, "notify succcess: " + notifySuccessUuid);
                 }
 
                 @Override

@@ -233,7 +233,7 @@ public class BleGattImpl implements BleGatt {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 String address = gatt.getDevice().getAddress();
                 String serviceUuid = descriptor.getCharacteristic().getService().getUuid().toString();
-                String characteristicUuid = descriptor.getCharacteristic().getUuid().toString();
+                final String characteristicUuid = descriptor.getCharacteristic().getUuid().toString();
                 UuidIdentify identify = getUuidIdentifyFromMap(mNotifyCallbackMap, address, serviceUuid, characteristicUuid);
                 if (identify == null) {
                     return;
@@ -244,7 +244,7 @@ public class BleGattImpl implements BleGatt {
                     @Override
                     public void run() {
                         if (callback != null) {
-                            callback.onNotifySuccess(device);
+                            callback.onNotifySuccess(characteristicUuid, device);
                         }
                     }
                 });

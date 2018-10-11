@@ -143,7 +143,7 @@ notify和indicate都使用以下方法
             }
             
             @Override
-            public void onNotifySuccess(BleDevice device) {
+            public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
 
             }
 

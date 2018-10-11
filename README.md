@@ -149,7 +149,7 @@ Both notification and indication use the following method to set notfication or 
             }
 
             @Override
-            public void onNotifySuccess(BleDevice device) {
+            public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
 
             }
 
