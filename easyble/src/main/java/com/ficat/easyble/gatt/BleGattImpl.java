@@ -362,33 +362,48 @@ public class BleGattImpl implements BleGatt {
     }
 
     @Override
-    public void disconnect(BleDevice device) {
-        if (device == null) {
+    public void disconnect(String address) {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
             return;
         }
-        BluetoothGatt gatt = mGattMap.get(device.address);
-        if (gatt != null) {
-            gatt.disconnect();
-//            refreshDeviceCache(gatt);
-            gatt.close();
-            //remove connection timeout message if a connection attempt currently is in progress
-            mHandler.removeCallbacksAndMessages(device.address);
-            mGattMap.remove(device.address);
+        BluetoothGatt gatt = mGattMap.get(address);
+        if (gatt == null) {
+            return;
+        }
+        gatt.disconnect();
+//      refreshDeviceCache(gatt);
+        gatt.close();
+        //remove connection timeout message if a connection attempt currently is in progress
+        mHandler.removeCallbacksAndMessages(address);
+        mGattMap.remove(address);
+
+        Map.Entry<BleDevice, BleConnectCallback> entry = findMapEntry(mConnectCallbackMap, address);
+        if (entry != null) {
+            final BleDevice d = entry.getKey();
+            final BleConnectCallback callback = entry.getValue();
+            d.connected = false;
+            removeDevice(d);
+            if (d.connecting) {
+                Logger.i("The disconnect() break a connection attempt being in progress");
+            } else {
+                //the disconnect() breaks a successful connection, so call back the onDisconnected()
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (callback != null) {
+                            callback.onDisconnected(d);
+                        }
+                    }
+                });
+            }
         }
     }
 
     @Override
     public void disconnectAll() {
-        for (BluetoothGatt gatt : mGattMap.values()) {
-            if (gatt != null) {
-                gatt.disconnect();
-//                refreshDeviceCache(gatt);
-                gatt.close();
-                //remove connection timeout message if a connection attempt currently is in progress
-                mHandler.removeCallbacksAndMessages(gatt.getDevice().getAddress());
-            }
+        for (String address : mGattMap.keySet()) {
+            disconnect(address);
         }
-        mGattMap.clear();
     }
 
     @Override

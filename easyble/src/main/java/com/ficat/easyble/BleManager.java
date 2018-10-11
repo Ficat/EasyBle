@@ -123,10 +123,13 @@ public final class BleManager {
      * Disconnect from the remote device
      *
      * @param device remote device
+     * @throws IllegalArgumentException if the device is null
      */
     public void disconnect(BleDevice device) {
-        checkBleGatt();
-        mGatt.disconnect(device);
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        disconnect(device.address);
     }
 
     /**
@@ -139,13 +142,8 @@ public final class BleManager {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
             throw new IllegalArgumentException("invalid address: " + address);
         }
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-        BleDevice bleDevice = newBleDevice(device);
-        if (bleDevice == null) {
-            Logger.d("new BleDevice fail!");
-            return;
-        }
-        disconnect(bleDevice);
+        checkBleGatt();
+        mGatt.disconnect(address);
     }
 
     /**

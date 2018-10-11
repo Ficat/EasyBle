@@ -18,7 +18,7 @@ import java.util.Map;
 public interface BleGatt {
     void connect(BleDevice device, BleConnectCallback callback);
 
-    void disconnect(BleDevice device);
+    void disconnect(String address);
 
     void disconnectAll();
 
