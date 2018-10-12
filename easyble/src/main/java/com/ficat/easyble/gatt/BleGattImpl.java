@@ -94,7 +94,7 @@ public class BleGattImpl implements BleGatt {
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
                     device.connected = false;
-                    close(device);
+                    gatt.close();
                     removeDevice(device);
                     mHandler.post(new Runnable() {
                         @Override
@@ -343,7 +343,8 @@ public class BleGattImpl implements BleGatt {
                 @Override
                 public void run() {
                     device.connecting = false;
-                    close(device);
+                    gatt.close();
+                    mGattMap.remove(device.address);
                     if (callback != null) {
                         callback.onTimeout(device);
                     }
@@ -383,10 +384,9 @@ public class BleGattImpl implements BleGatt {
             final BleConnectCallback callback = entry.getValue();
             d.connected = false;
             removeDevice(d);
-            if (d.connecting) {
-                Logger.i("The disconnect() break a connection attempt being in progress");
-            } else {
-                //the disconnect() breaks a successful connection, so call back the onDisconnected()
+            if (d.connecting) { //break a connection attempt being in progress
+                d.connecting = false;
+            } else {//break a successful connection
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -665,17 +665,6 @@ public class BleGattImpl implements BleGatt {
         mHandler.removeCallbacksAndMessages(null);
         disconnectAll();
         clearAllCallbacks();
-    }
-
-    private void close(BleDevice device) {
-        if (device == null) {
-            return;
-        }
-        BluetoothGatt gatt = mGattMap.get(device.address);
-        if (gatt != null) {
-            gatt.close();
-            mGattMap.remove(device.address);
-        }
     }
 
     private void checkNotNull(Object object, Class<?> clasz) {
