@@ -33,20 +33,14 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     private BleScanCallback mBleScanCallback;//all sdk version uses this scan callback
     private BluetoothLeScanner mBluetoothLeScanner;
     private ScanSettings mScanSettings;
-    private List<ScanFilter> mScanFilters;
-    private int mScanPeriod;
+    private int mScanPeriod = 12000;//scan period, default 10s
     private String mDeviceName;
     private String mDeviceAddress;
     private UUID[] mServiceUuids;
-    private List<ParcelUuid> mServiceUuidList;
     private volatile boolean mScanning;
     private Handler mHandler;
 
-    private BleScanner(String deviceName, String address, UUID[] serviceUuids, int scanPeriod) {
-        mDeviceName = deviceName;
-        mDeviceAddress = address;
-        mServiceUuids = serviceUuids;
-        mScanPeriod = scanPeriod;
+    public BleScanner() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mHandler = new Handler(Looper.getMainLooper());
         //register BluetoothStateChangedListener
@@ -54,7 +48,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     }
 
     @Override
-    public synchronized void startScan(final BleScanCallback callback) {
+    public synchronized void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress, UUID[] scanServiceUuids, final BleScanCallback callback) {
         if (callback == null) {
             throw new IllegalArgumentException("BleScanCallback is null");
         }
@@ -78,6 +72,14 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         }
         if (scanStart) {
             mScanning = true;
+
+            if (scanPeriod > 0) {
+                mScanPeriod = scanPeriod;
+            }
+            mDeviceName = scanDeviceName;
+            mDeviceAddress = scanDeviceAddress;
+            mServiceUuids = scanServiceUuids;
+
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -97,7 +99,8 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                 @Override
                 public void run() {
                     if (mBleScanCallback != null) {
-                        mBleScanCallback.onStart(false, "scan begin fail,bluetooth is closed or other reason");
+                        mBleScanCallback.onStart(false,
+                                "scan begin fail,bluetooth is closed or other unknown reason");
                     }
                 }
             });
@@ -191,7 +194,8 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                         public void run() {
                             if (!hasResultByFilterUuids(result)) return;
                             if (mBleScanCallback == null) return;
-                            mBleScanCallback.onLeScan(newBleDevice(result.getDevice()), result.getRssi(), result.getScanRecord().getBytes());
+                            byte[] scanRecord = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
+                            mBleScanCallback.onLeScan(newBleDevice(result.getDevice()), result.getRssi(), scanRecord);
                         }
                     });
                 }
@@ -218,15 +222,13 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build();
         }
-        if (mScanFilters == null) {
-            mScanFilters = new ArrayList<>();
-            ScanFilter filter = new ScanFilter.Builder()
-                    .setDeviceName(mDeviceName)
-                    .setDeviceAddress(mDeviceAddress)
-                    .build();
-            mScanFilters.add(filter);
-        }
-        mBluetoothLeScanner.startScan(mScanFilters, mScanSettings, mScanCallback);
+        List<ScanFilter> scanFilters = new ArrayList<>();
+        ScanFilter filter = new ScanFilter.Builder()
+                .setDeviceName(mDeviceName)
+                .setDeviceAddress(mDeviceAddress)
+                .build();
+        scanFilters.add(filter);
+        mBluetoothLeScanner.startScan(scanFilters, mScanSettings, mScanCallback);
         return true;
     }
 
@@ -239,14 +241,12 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         if (scanRecord == null) {
             return false;
         }
-        if (mServiceUuidList == null) {
-            mServiceUuidList = new ArrayList<>();
-            for (UUID uuid : mServiceUuids) {
-                mServiceUuidList.add(new ParcelUuid(uuid));
-            }
+        List<ParcelUuid> serviceUuidList = new ArrayList<>();
+        for (UUID uuid : mServiceUuids) {
+            serviceUuidList.add(new ParcelUuid(uuid));
         }
         List<ParcelUuid> scanServiceUuids = result.getScanRecord().getServiceUuids();
-        return scanServiceUuids != null && scanServiceUuids.containsAll(mServiceUuidList);
+        return scanServiceUuids != null && scanServiceUuids.containsAll(serviceUuidList);
     }
 
     private boolean sdkVersionLowerThan21() {
@@ -263,39 +263,6 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         } catch (Exception e) {
             Logger.i("encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
             return null;
-        }
-    }
-
-    public static final class Builder {
-        private int mScanPeriod = 12000;//defalut scan period is 12s
-        private String mDeviceName;
-        private String mDeviceAddress;
-        private UUID[] mServiceUuids;
-
-        public Builder setScanPeriod(int scanPeriod) {
-            if (scanPeriod > 0) {
-                mScanPeriod = scanPeriod;
-            }
-            return this;
-        }
-
-        public Builder setDeviceName(String deviceName) {
-            mDeviceName = deviceName;
-            return this;
-        }
-
-        public Builder setDeviceAddress(String address) {
-            mDeviceAddress = address;
-            return this;
-        }
-
-        public Builder setServiceUuids(UUID[] serviceUuids) {
-            mServiceUuids = serviceUuids;
-            return this;
-        }
-
-        public BleScanner build() {
-            return new BleScanner(mDeviceName, mDeviceAddress, mServiceUuids, mScanPeriod);
         }
     }
 }

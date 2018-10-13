@@ -83,7 +83,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         options.loggable = true;
         options.scanPeriod = 10000;
         options.connectTimeout = 10000;
-        manager = BleManager.getInstance(getApplication(), options);
+        manager = BleManager.getInstance(getApplication());
+        manager.option(options);
     }
 
     private void showDevicesByRv() {

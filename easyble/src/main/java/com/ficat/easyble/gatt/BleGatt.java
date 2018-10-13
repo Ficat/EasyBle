@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface BleGatt {
-    void connect(BleDevice device, BleConnectCallback callback);
+    void connect(int connectTimeout, BleDevice device, BleConnectCallback callback);
 
     void disconnect(String address);
 

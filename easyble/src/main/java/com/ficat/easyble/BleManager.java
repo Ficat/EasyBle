@@ -40,25 +40,18 @@ public final class BleManager {
     private final Object mLock1 = new Object();
     private final Object mLock2 = new Object();
 
-    private BleManager(Context context, Options options) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context is null");
+    private BleManager(Context context) {
+        if (mContext == null) {
+            if (context == null) {
+                throw new IllegalArgumentException("Context is null");
+            }
+            if (context instanceof Activity) {
+                Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
+            }
+            this.mContext = context;
+            this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            registerBleReceiver();
         }
-        if (context instanceof Activity) {
-            Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
-        }
-        if (options == null) {
-            options = new Options();
-        }
-        this.mContext = context;
-        this.mOptions = options;
-        this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        setLoggable(options.loggable);
-        registerBleReceiver();
-    }
-
-    private void setLoggable(boolean loggalbe) {
-        Logger.LOGGABLE = loggalbe;
     }
 
     private void registerBleReceiver() {
@@ -67,15 +60,27 @@ public final class BleManager {
         mContext.registerReceiver(BleReceiver.getInstance(), intentFilter);
     }
 
-    public static BleManager getInstance(Context context, Options options) {
+    public static BleManager getInstance(Context context) {
         if (instance == null) {
             synchronized (BleManager.class) {
                 if (instance == null) {
-                    instance = new BleManager(context, options);
+                    instance = new BleManager(context);
                 }
             }
         }
         return instance;
+    }
+
+    public void option(Options options) {
+        if (options == null) {
+            options = new Options();
+        }
+        this.mOptions = options;
+        setLoggable(options.loggable);
+    }
+
+    private void setLoggable(boolean loggalbe) {
+        Logger.LOGGABLE = loggalbe;
     }
 
     /**
@@ -83,7 +88,8 @@ public final class BleManager {
      */
     public void startScan(BleScanCallback callback) {
         checkBleScan();
-        mScan.startScan(callback);
+        mScan.startScan(mOptions.scanPeriod, mOptions.scanDeviceName, mOptions.scanDeviceAddress,
+                mOptions.scanServiceUuids, callback);
     }
 
     /**
@@ -100,7 +106,7 @@ public final class BleManager {
      */
     public void connect(BleDevice device, BleConnectCallback callback) {
         checkBleGatt();
-        mGatt.connect(device, callback);
+        mGatt.connect(mOptions.connectTimeout, device, callback);
     }
 
     /**
@@ -384,12 +390,7 @@ public final class BleManager {
         if (mScan == null) {
             synchronized (mLock1) {
                 if (mScan == null) {
-                    mScan = new BleScanner.Builder()
-                            .setScanPeriod(mOptions.scanPeriod)
-                            .setDeviceName(mOptions.scanDeviceName)
-                            .setDeviceAddress(mOptions.scanDeviceAddress)
-                            .setServiceUuids(mOptions.scanServiceUuids)
-                            .build();
+                    mScan = new BleScanner();
                 }
             }
         }
@@ -399,9 +400,7 @@ public final class BleManager {
         if (mGatt == null) {
             synchronized (mLock2) {
                 if (mGatt == null) {
-                    mGatt = new BleGattImpl.Builder(mContext)
-                            .setConnectTimeout(mOptions.connectTimeout)
-                            .build();
+                    mGatt = new BleGattImpl(mContext);
                 }
             }
         }

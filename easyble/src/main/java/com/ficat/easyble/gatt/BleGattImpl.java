@@ -47,7 +47,7 @@ public class BleGattImpl implements BleGatt {
     private static final String CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
     private Context mContext;
-    private int mConnectTimeout;
+    private int mConnectTimeout = 10000;//defalut 10s
     private Handler mHandler;
     private Map<BleDevice, BleConnectCallback> mConnectCallbackMap;
     private Map<String, BleMtuCallback> mMtuCallbackMap;
@@ -59,9 +59,8 @@ public class BleGattImpl implements BleGatt {
     private Map<UuidIdentify, BleWriteCallback> mWrtieCallbackMap;
     private List<String> mConnectedDevices;
 
-    private BleGattImpl(@NonNull Context context, int connectTimeout) {
+    public BleGattImpl(@NonNull Context context) {
         mContext = context;
-        mConnectTimeout = connectTimeout;
         mHandler = new Handler(Looper.getMainLooper());
         mConnectCallbackMap = new ConcurrentHashMap<>();
         mMtuCallbackMap = new ConcurrentHashMap<>();
@@ -283,7 +282,7 @@ public class BleGattImpl implements BleGatt {
     };
 
     @Override
-    public synchronized void connect(final BleDevice device, final BleConnectCallback callback) {
+    public synchronized void connect(int connectTimeout, final BleDevice device, final BleConnectCallback callback) {
         checkNotNull(callback, BleConnectCallback.class);
         checkNotNull(device, BleDevice.class);
         if (!isBluetoothEnable()) {
@@ -324,6 +323,9 @@ public class BleGattImpl implements BleGatt {
         if (gatt != null) {
             device.connecting = true;
             mGattMap.put(device.address, gatt);
+            if (connectTimeout > 0) {
+                mConnectTimeout = connectTimeout;
+            }
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -824,29 +826,6 @@ public class BleGattImpl implements BleGatt {
             this.address = address;
             this.serviceUuid = serviceUuid;
             this.characteristicUuid = characteristicUuid;
-        }
-    }
-
-    public static final class Builder {
-        private int mConnectTimeout = 10000;//default connection timeout
-        private Context mContext;
-
-        public Builder(Context context) {
-            if (context == null) {
-                throw new IllegalArgumentException("context is null");
-            }
-            mContext = context;
-        }
-
-        public Builder setConnectTimeout(int connectTimeout) {
-            if (connectTimeout > 0) {
-                mConnectTimeout = connectTimeout;
-            }
-            return this;
-        }
-
-        public BleGattImpl build() {
-            return new BleGattImpl(mContext, mConnectTimeout);
         }
     }
 }
