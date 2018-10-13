@@ -303,7 +303,7 @@ public class BleGattImpl implements BleGatt {
                     public void run() {
                         String info = "";
                         if (d.connecting) {
-                            info = "The master device is connecting to this device";
+                            info = "Connection between master device and the target remote device is in progress";
                         } else if (d.connected) {
                             info = "The master device has already connected to this device";
                         }
@@ -484,7 +484,7 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFail(BleCallback.FAIL_OTHER, "read fail because of other reason", device);
+                    callback.onFail(BleCallback.FAIL_OTHER, "read fail because of unknown reason", device);
                 }
             });
         }
@@ -525,7 +525,7 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFail(BleCallback.FAIL_OTHER, "write fail because of other reason", device);
+                    callback.onFail(BleCallback.FAIL_OTHER, "write fail because of unknown reason", device);
                 }
             });
         }
@@ -601,7 +601,7 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFail(BleCallback.FAIL_OTHER, "fail to read rssi because of other reason", device);
+                    callback.onFail(BleCallback.FAIL_OTHER, "fail to read rssi because of unknown reason", device);
                 }
             });
         }
@@ -633,7 +633,7 @@ public class BleGattImpl implements BleGatt {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFail(BleCallback.FAIL_OTHER, "fail to read rssi because of other reason", device);
+                    callback.onFail(BleCallback.FAIL_OTHER, "fail to read rssi because of unknown reason", device);
                 }
             });
         }
@@ -676,7 +676,7 @@ public class BleGattImpl implements BleGatt {
                 @Override
                 public void run() {
                     callback.onFail(BleCallback.FAIL_DISCONNECTED,
-                            "This remote device has not connected to master device yet", device);
+                            "Connection between master device and target remote device has not been established yet", device);
                 }
             });
             return false;

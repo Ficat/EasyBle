@@ -1,16 +1,17 @@
 package com.ficat.easyble;
 
 import android.bluetooth.BluetoothDevice;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
-import java.io.Serializable;
 
 /**
  * Created by pw on 2018/9/13.
  */
 
-public class BleDevice implements Serializable {
+public class BleDevice implements Parcelable {
     public volatile boolean connected;
     public volatile boolean connecting;
     public String address;
@@ -40,4 +41,38 @@ public class BleDevice implements Serializable {
                 ", device=" + device +
                 '}';
     }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeByte(this.connected ? (byte) 1 : (byte) 0);
+        dest.writeByte(this.connecting ? (byte) 1 : (byte) 0);
+        dest.writeString(this.address);
+        dest.writeString(this.name);
+        dest.writeParcelable(this.device, flags);
+    }
+
+    protected BleDevice(Parcel in) {
+        this.connected = in.readByte() != 0;
+        this.connecting = in.readByte() != 0;
+        this.address = in.readString();
+        this.name = in.readString();
+        this.device = in.readParcelable(BluetoothDevice.class.getClassLoader());
+    }
+
+    public static final Parcelable.Creator<BleDevice> CREATOR = new Parcelable.Creator<BleDevice>() {
+        @Override
+        public BleDevice createFromParcel(Parcel source) {
+            return new BleDevice(source);
+        }
+
+        @Override
+        public BleDevice[] newArray(int size) {
+            return new BleDevice[size];
+        }
+    };
 }

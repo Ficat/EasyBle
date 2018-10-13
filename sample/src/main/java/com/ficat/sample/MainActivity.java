@@ -301,6 +301,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    /**
+     * randomly finding a characteristic supporting specific property ,and using the characteristic
+     * to test like notify() or write()
+     *
+     * @return the map-value is the uuid of characteristic used for test,and the map-key is the
+     * uuid of service that contains this characteristic
+     */
     private Map<String, String> getSpecificServiceInfo(BleDevice device, int characteristicProperty) {
         Map<String, String> map = new HashMap<>();
         Map<ServiceInfo, List<CharacteristicInfo>> serviceInfo = manager.getDeviceServices(device);
