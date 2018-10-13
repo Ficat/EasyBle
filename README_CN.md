@@ -38,6 +38,11 @@ dependencies {
 
 ```java
 
+        //获取管理器对象
+        BleManager bleManager = BleManager.getInstance(this.getApplication());
+        
+        //设置ble选项，可多次设置,EasyBle将使用最新的options。比如本次扫描周期
+        //为10s，但你想要下一次扫描周期更长一些，则再次调用本方法去设置即可
         BleManager.Options options = new BleManager.Options();
         options.loggable = true; //是否打印日志
         options.connectTimeout = 10000; //连接超时时间
@@ -45,9 +50,8 @@ dependencies {
         options.scanDeviceName = "targetDeviceName"; //扫描的目标设备名
         options.scanDeviceAddress = "targetDeviceAddress"; //扫描目标设备地址如"DD:0D:30:00:0D:9B"
         options.scanServiceUuids = serviceUuidArray; //扫描含该服务UUID的目标设备
+        bleManager.option(options);
         
-        //获取管理器对象
-        BleManager bleManager = BleManager.getInstance(this.getApplication(), options);
 ```
 
 ### 2.扫描

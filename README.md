@@ -41,16 +41,21 @@ If you want to open bluetooth, I strongly recommend you call enableBluetooth() r
 
 ```java
 
+        //Get ble manager
+        BleManager bleManager = BleManager.getInstance(this.getApplication());
+
+        //Set options, you can call this method many times, this framework will use
+        //the newest options. For example,you have set scan period(like 10s), but next
+        //scan you wanna scan period longer(like 15s), so you can call this method again
+        //to set scan period is 15s
         BleManager.Options options = new BleManager.Options();
         options.loggable = true; //does it print log?
         options.connectTimeout = 10000; //connection time out
         options.scanPeriod = 12000; //scan period
         options.scanDeviceName = "deviceName"; 
         options.scanDeviceAddress = "deviceAddress";//like "DD:0D:30:00:0D:9B"
-        options.scanServiceUuids = serviceUuidArray; 
-        
-        //get ble manager
-        BleManager bleManager = BleManager.getInstance(this.getApplication(), options);
+        options.scanServiceUuids = serviceUuidArray;
+        bleManager.option(options);
 
 ```
 
