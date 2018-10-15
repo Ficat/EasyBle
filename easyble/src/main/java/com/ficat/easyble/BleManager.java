@@ -3,6 +3,7 @@ package com.ficat.easyble;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -49,6 +50,7 @@ public final class BleManager {
                 Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
             }
             this.mContext = context;
+            this.mOptions = new Options();
             this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             registerBleReceiver();
         }
@@ -113,9 +115,7 @@ public final class BleManager {
      * Connect to remote device by address
      */
     public void connect(String address, BleConnectCallback callback) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            throw new IllegalArgumentException("invalid address: " + address);
-        }
+        checkBluetoothAddress(address);
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         BleDevice bleDevice = newBleDevice(device);
         if (bleDevice == null) {
@@ -142,12 +142,9 @@ public final class BleManager {
      * Disconnect from the remote device
      *
      * @param address remote device address
-     * @throws IllegalArgumentException if the address is invalid
      */
     public void disconnect(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            throw new IllegalArgumentException("invalid address: " + address);
-        }
+        checkBluetoothAddress(address);
         checkBleGatt();
         mGatt.disconnect(address);
     }
@@ -285,12 +282,9 @@ public final class BleManager {
      *
      * @param address device mac
      * @return true if local device has connected to the specific remote device
-     * @throws IllegalArgumentException if the address is invalid
      */
     public boolean isConnected(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            throw new IllegalArgumentException("invalid address: " + address);
-        }
+        checkBluetoothAddress(address);
         List<BleDevice> deviceList = getConnectedDevices();
         for (BleDevice d : deviceList) {
             if (address.equals(d.address)) {
@@ -386,6 +380,18 @@ public final class BleManager {
         return adapter != null && adapter.isEnabled();
     }
 
+    /**
+     * Get the BluetoothGatt object of specific remote device
+     *
+     * @return the BluetoothGatt object, note that it will return null if connection between
+     *          the central device and the remote device has not started or established.
+     */
+    public BluetoothGatt getBluetoothGatt(String address) {
+        checkBluetoothAddress(address);
+        checkBleGatt();
+        return mGatt.getBluetoothGatt(address);
+    }
+
     private void checkBleScan() {
         if (mScan == null) {
             synchronized (mLock1) {
@@ -393,6 +399,12 @@ public final class BleManager {
                     mScan = new BleScanner();
                 }
             }
+        }
+    }
+
+    private void checkBluetoothAddress(String address) {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            throw new IllegalArgumentException("Invalid address: " + address);
         }
     }
 
@@ -420,11 +432,11 @@ public final class BleManager {
     }
 
     public static final class Options {
-        public int scanPeriod;
+        public int scanPeriod = 12000;
         public String scanDeviceName;
         public String scanDeviceAddress;
         public UUID[] scanServiceUuids;
-        public int connectTimeout;
-        public boolean loggable;
+        public int connectTimeout = 10000;
+        public boolean loggable = false;
     }
 }

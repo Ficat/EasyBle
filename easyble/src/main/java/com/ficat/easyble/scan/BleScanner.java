@@ -64,6 +64,14 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
             });
             return;
         }
+
+        if (scanPeriod > 0) {
+            mScanPeriod = scanPeriod;
+        }
+        mDeviceName = scanDeviceName;
+        mDeviceAddress = scanDeviceAddress;
+        mServiceUuids = scanServiceUuids;
+
         boolean scanStart;
         if (sdkVersionLowerThan21()) {
             scanStart = scanByOldApi();
@@ -72,14 +80,6 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         }
         if (scanStart) {
             mScanning = true;
-
-            if (scanPeriod > 0) {
-                mScanPeriod = scanPeriod;
-            }
-            mDeviceName = scanDeviceName;
-            mDeviceAddress = scanDeviceAddress;
-            mServiceUuids = scanServiceUuids;
-
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {

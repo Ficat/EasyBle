@@ -656,6 +656,11 @@ public class BleGattImpl implements BleGatt {
     }
 
     @Override
+    public BluetoothGatt getBluetoothGatt(String address) {
+        return mGattMap.get(address);
+    }
+
+    @Override
     public void destroy() {
         mHandler.removeCallbacksAndMessages(null);
         disconnectAll();

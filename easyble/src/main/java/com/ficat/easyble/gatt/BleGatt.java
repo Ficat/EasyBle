@@ -1,6 +1,8 @@
 package com.ficat.easyble.gatt;
 
 
+import android.bluetooth.BluetoothGatt;
+
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.gatt.bean.CharacteristicInfo;
 import com.ficat.easyble.gatt.bean.ServiceInfo;
@@ -39,6 +41,8 @@ public interface BleGatt {
     List<BleDevice> getConnectedDevices();
 
     Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device);
+
+    BluetoothGatt getBluetoothGatt(String address);
 
     void destroy();
 }
