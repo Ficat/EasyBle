@@ -22,11 +22,6 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
     private OnItemClickListener mClickListener;
     private OnItemLongClickListener mLongClickListener;
 
-    /**
-     * @param context             context
-     * @param dataList            dataList which are showed by recyclerview
-     * @param resLayoutAndViewIds item layouts,whose key is layout and value is its view ids
-     */
     public CommonRecyclerViewAdapter(@NonNull Context context, @NonNull List<T> dataList, @NonNull SparseArray<int[]> resLayoutAndViewIds) {
         this.mInflater = LayoutInflater.from(context);
 
@@ -96,7 +91,7 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
     public int getItemViewType(int position) {
         int type = getItemReslayoutType(position);
         if (mResLayoutAndViewIds.indexOfKey(type) < 0) {
-            throw new IllegalStateException("the ResLayoutAndViewIds don't contain " + type + " item layout type");
+            throw new IllegalStateException("the ResLayoutAndViewIds doesn't contain " + type + " item layout type");
         }
         return type;
     }

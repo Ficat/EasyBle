@@ -142,6 +142,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             @Override
                             public void onPermissionsRequestResult(Permission permission) {
                                 if (permission.granted) {
+                                    if (manager.isScanning()) return;
                                     startScan();
                                 } else {
                                     if (permission.shouldShowRequestPermissionRationale) {

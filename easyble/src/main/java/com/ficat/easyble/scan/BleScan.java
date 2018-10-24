@@ -7,5 +7,7 @@ public interface BleScan<T> {
 
     void stopScan();
 
+    boolean isScanning();
+
     void destroy();
 }

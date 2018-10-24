@@ -135,6 +135,11 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     }
 
     @Override
+    public boolean isScanning() {
+        return mScanning;
+    }
+
+    @Override
     public void onBluetoothStateChanged() {
         if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_OFF) {
             stopScan();

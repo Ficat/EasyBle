@@ -85,6 +85,11 @@ public final class BleManager {
         Logger.LOGGABLE = loggalbe;
     }
 
+    public boolean isScanning() {
+        checkBleScan();
+        return mScan.isScanning();
+    }
+
     /**
      * Scan ble device
      */
@@ -380,11 +385,15 @@ public final class BleManager {
         return adapter != null && adapter.isEnabled();
     }
 
+    public Options getOptions() {
+        return mOptions;
+    }
+
     /**
      * Get the BluetoothGatt object of specific remote device
      *
      * @return the BluetoothGatt object, note that it will return null if connection between
-     *          the central device and the remote device has not started or established.
+     * the central device and the remote device has not started or established.
      */
     public BluetoothGatt getBluetoothGatt(String address) {
         checkBluetoothAddress(address);
