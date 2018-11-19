@@ -1,4 +1,4 @@
-package com.ficat.sample.common;
+package com.ficat.sample.adapter.common;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
@@ -67,7 +67,7 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
     public void onBindViewHolder(RecyclerView.ViewHolder holder, final int position) {
         MyViewHolder mHolder = (MyViewHolder) holder;
         if (mClickListener != null) {
-            mHolder.mItemView.setOnClickListener(new View.OnClickListener() {
+            mHolder.itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     mClickListener.onItemClick(view, position);
@@ -75,8 +75,8 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
             });
         }
         if (mLongClickListener != null) {
-            mHolder.mItemView.setLongClickable(true);
-            mHolder.mItemView.setOnLongClickListener(new View.OnLongClickListener() {
+            mHolder.itemView.setLongClickable(true);
+            mHolder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
                     mLongClickListener.onItemLongClick(view, position);
@@ -110,11 +110,9 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
 
     public static class MyViewHolder extends RecyclerView.ViewHolder {
         public SparseArray<View> mViews;
-        public View mItemView;
 
         public MyViewHolder(@NonNull View itemView, @NonNull int[] resViewIds) {
             super(itemView);
-            this.mItemView = itemView;
             mViews = new SparseArray<>();
             for (int viewId : resViewIds) {
                 View view = itemView.findViewById(viewId);

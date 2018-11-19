@@ -26,7 +26,7 @@ import com.ficat.easypermissions.EasyPermissions;
 import com.ficat.easypermissions.Permission;
 import com.ficat.easypermissions.RequestSubscriber;
 import com.ficat.sample.adapter.ScanDeviceAdapter;
-import com.ficat.sample.common.CommonRecyclerViewAdapter;
+import com.ficat.sample.adapter.common.CommonRecyclerViewAdapter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void testReadRssi() {
         if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected device", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
             return;
         }
         //we use the first connected device to test
@@ -228,7 +228,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void testSetMtu() {
         if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected device", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
             return;
         }
         //we use the first connected device to test
@@ -249,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void testWrite() {
         if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected device", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
             return;
         }
         //we use the first connected device to test
@@ -274,7 +274,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void testNotify() {
         if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected device", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
             return;
         }
         //we use the first connected device to test

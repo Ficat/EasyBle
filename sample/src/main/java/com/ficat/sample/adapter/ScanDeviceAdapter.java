@@ -7,7 +7,7 @@ import android.widget.TextView;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.sample.R;
-import com.ficat.sample.common.CommonRecyclerViewAdapter;
+import com.ficat.sample.adapter.common.CommonRecyclerViewAdapter;
 
 import java.util.List;
 
