@@ -12,14 +12,14 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v1.0.2'
+    implementation 'com.github.Ficat:EasyBle:v1.0.3'
 }
 ```
 
 ## Usage
  The framework uses BleManager to manager BLE
 ### Some basic useful api in BleManager
-If you want to open bluetooth, I strongly recommend you call enableBluetooth() rather than toggleBluetooth(true), due to you can receive result message from Activity#onActivityResult if using enableBluetooth() to enable bluetooth
+If you want to turn on bluetooth, I strongly recommend you call enableBluetooth() rather than toggleBluetooth(true), due to you can receive result message from Activity#onActivityResult if using enableBluetooth() to enable bluetooth
 ```java
         //check if the device supports BLE
         BleManager.supportBle(context);
@@ -27,11 +27,11 @@ If you want to open bluetooth, I strongly recommend you call enableBluetooth() r
         //is Bluetooth turned on?
         BleManager.isBluetoothOn();
         
-        //open or close bluetooth without showing users a request
+        //turn on or off bluetooth without showing users a request
         //dialog, except some special android devices 
         BleManager.toggleBluetooth(true); 
         
-        //open bluetooth with a request dialog, you can receive the
+        //turn on bluetooth with a request dialog, you can receive the
         //result from the method onActivityResult() of this activity
         BleManager.enableBluetooth(activity,requestCode);
 ```
