@@ -530,8 +530,19 @@ public class BleGattImpl implements BleGatt {
 
     @Override
     public void writeByBatch(BleDevice device, final String serviceUuid, final String writeUuid,
-                             final byte[] writedData, final int lengthPerPackage, final BleWriteByBatchCallback callback) {
+                             final byte[] writedData, int lengthPerPackage, final BleWriteByBatchCallback callback) {
         checkNotNull(callback, BleWriteByBatchCallback.class);
+        if (writedData == null || writedData.length == 0) {
+            callback.onFail(BleCallback.FAIL_OTHER, "writeData is null or no writing data", device);
+            return;
+        }
+        if (lengthPerPackage < 1 || lengthPerPackage > 509) {
+            callback.onFail(BleCallback.FAIL_OTHER, "lengthPerPackage is invalid, it must range from 1 to 509", device);
+            return;
+        }
+        if (lengthPerPackage > 20) {
+            Logger.w("lengthPerPackage is greater than the default length of per package, make sure MTU is greater than 23");
+        }
         final List<byte[]> byteList = getBatchData(writedData, lengthPerPackage);
         if (byteList.size() > 0) {
             BleWriteCallback writeCallback = new BleWriteCallback() {
@@ -556,12 +567,6 @@ public class BleGattImpl implements BleGatt {
 
     private List<byte[]> getBatchData(byte[] data, int lengthPerPackage) {
         List<byte[]> batchDatas = new ArrayList<>();
-        if (data == null || data.length == 0) {
-            return batchDatas;
-        }
-        if (lengthPerPackage < 0) {
-            lengthPerPackage = 20;
-        }
         int packageNummber = (data.length % lengthPerPackage == 0) ? data.length / lengthPerPackage :
                 data.length / lengthPerPackage + 1;
         for (int i = 1; i <= packageNummber; i++) {
