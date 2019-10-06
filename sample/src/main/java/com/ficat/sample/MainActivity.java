@@ -23,8 +23,8 @@ import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easypermissions.EasyPermissions;
-import com.ficat.easypermissions.Permission;
-import com.ficat.easypermissions.RequestSubscriber;
+import com.ficat.easypermissions.RequestExecutor;
+import com.ficat.easypermissions.bean.Permission;
 import com.ficat.sample.adapter.ScanDeviceAdapter;
 import com.ficat.sample.adapter.common.CommonRecyclerViewAdapter;
 
@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final static String TAG = "EasyBle";
 
     private final static int CHARACTERISTIC_READABLE = 101;
-    private final static int CHARACTERISTIC_WRITEABLE = 102;
+    private final static int CHARACTERISTIC_WRITABLE = 102;
     private final static int CHARACTERISTIC_NOTIFICATION = 103;
 
     private RecyclerView rv;
@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btnScan = findViewById(R.id.btn_scan);
         Button btnDisconnect = findViewById(R.id.btn_disconnect);
         Button btnNotify = findViewById(R.id.btn_notify);
-        Button btnWirte = findViewById(R.id.btn_write);
+        Button btnWrite = findViewById(R.id.btn_write);
         Button btnReadRssi = findViewById(R.id.btn_read_rssi);
         Button btnMtu = findViewById(R.id.btn_mtu);
         rv = findViewById(R.id.rv);
@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnScan.setOnClickListener(this);
         btnDisconnect.setOnClickListener(this);
         btnNotify.setOnClickListener(this);
-        btnWirte.setOnClickListener(this);
+        btnWrite.setOnClickListener(this);
         btnReadRssi.setOnClickListener(this);
         btnMtu.setOnClickListener(this);
     }
@@ -136,23 +136,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (!BleManager.isBluetoothOn()) {
                     BleManager.toggleBluetooth(true);
                 }
-                final EasyPermissions easyPermissions = new EasyPermissions(this);
-                easyPermissions.requestEach(Manifest.permission.ACCESS_COARSE_LOCATION)
-                        .subscribe(new RequestSubscriber<Permission>() {
+                EasyPermissions
+                        .with(this)
+                        .request(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        .autoRetryWhenUserRefuse(true, null)
+                        .result(new RequestExecutor.ResultReceiver() {
                             @Override
-                            public void onPermissionsRequestResult(Permission permission) {
-                                if (permission.granted) {
-                                    if (manager.isScanning()) return;
-                                    startScan();
-                                } else {
-                                    if (permission.shouldShowRequestPermissionRationale) {
-                                        easyPermissions.requestEach(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                                .subscribe(this);
-                                    } else {
-                                        Toast.makeText(MainActivity.this,
-                                                "Please go to settings to grant location permission manually",
-                                                Toast.LENGTH_LONG).show();
+                            public void onPermissionsRequestResult(boolean grantAll, List<Permission> results) {
+                                if (grantAll) {
+                                    if (!manager.isScanning()) {
+                                        startScan();
                                     }
+                                } else {
+                                    Toast.makeText(MainActivity.this,
+                                            "Please go to settings to grant location permission manually",
+                                            Toast.LENGTH_LONG).show();
+                                    EasyPermissions.goToSettingsActivity(MainActivity.this);
                                 }
                             }
                         });
@@ -254,8 +253,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         //we use the first connected device to test
         BleDevice device1 = manager.getConnectedDevices().get(0);
-        //randomly finding a writeable characteristic to test
-        Map<String, String> notificationInfo1 = getSpecificServiceInfo(device1, CHARACTERISTIC_WRITEABLE);
+        //randomly finding a writable characteristic to test
+        Map<String, String> notificationInfo1 = getSpecificServiceInfo(device1, CHARACTERISTIC_WRITABLE);
         for (Map.Entry<String, String> e : notificationInfo1.entrySet()) {
             manager.write(device1, e.getKey(), e.getValue(), "TestWriteData001".getBytes(), new BleWriteCallback() {
                 @Override
@@ -316,10 +315,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String serviceUuid = entry.getKey().uuid;
             for (CharacteristicInfo charInfo : entry.getValue()) {
                 boolean specificReadable = characteristicProperty == CHARACTERISTIC_READABLE && charInfo.readable;
-                boolean specificWriteable = characteristicProperty == CHARACTERISTIC_WRITEABLE && charInfo.writeable;
+                boolean specificWritable = characteristicProperty == CHARACTERISTIC_WRITABLE && charInfo.writable;
                 boolean specificNotify = characteristicProperty == CHARACTERISTIC_NOTIFICATION && (charInfo.notify ||
                         charInfo.indicative);
-                if (specificReadable || specificWriteable || specificNotify) {
+                if (specificReadable || specificWritable || specificNotify) {
                     map.put(serviceUuid, charInfo.uuid);
                 }
             }

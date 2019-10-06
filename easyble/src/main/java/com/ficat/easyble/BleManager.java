@@ -81,8 +81,8 @@ public final class BleManager {
         setLoggable(options.loggable);
     }
 
-    private void setLoggable(boolean loggalbe) {
-        Logger.LOGGABLE = loggalbe;
+    private void setLoggable(boolean loggable) {
+        Logger.LOGGABLE = loggable;
     }
 
     public boolean isScanning() {
@@ -191,12 +191,12 @@ public final class BleManager {
     }
 
     /**
-     * Write data to the remote device by specific writeable characteristic
+     * Write data to the remote device by specific writable characteristic
      *
      * @param device      remote device
-     * @param serviceUuid serivce uuid that the writeable characteristic belongs to
+     * @param serviceUuid serivce uuid that the writable characteristic belongs to
      * @param writeUuid   characteristic uuid which you write data, note that the
-     *                    characteristic must be writeable, or it will call back onFail()
+     *                    characteristic must be writable, or it will call back onFail()
      * @param data        data
      * @param callback    result callback
      */
@@ -211,9 +211,9 @@ public final class BleManager {
      * device by batch
      *
      * @param device           remote device
-     * @param serviceUuid      serivce uuid that the writeable characteristic belongs to
+     * @param serviceUuid      serivce uuid that the writable characteristic belongs to
      * @param writeUuid        characteristic uuid which you write data, note that the
-     *                         characteristic must be writeable, or it will call back onFail()
+     *                         characteristic must be writable, or it will call back onFail()
      * @param data             data
      * @param lengthPerPackage data length per package
      * @param callback         result callback
@@ -289,7 +289,9 @@ public final class BleManager {
      * @return true if local device has connected to the specific remote device
      */
     public boolean isConnected(String address) {
-        checkBluetoothAddress(address);
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            return false;
+        }
         List<BleDevice> deviceList = getConnectedDevices();
         for (BleDevice d : deviceList) {
             if (address.equals(d.address)) {

@@ -9,14 +9,14 @@ import java.io.Serializable;
 public class CharacteristicInfo implements Serializable {
     public String uuid;
     public boolean readable;
-    public boolean writeable;
+    public boolean writable;
     public boolean notify;
     public boolean indicative;
 
-    public CharacteristicInfo(String uuid, boolean readable, boolean writeable, boolean notify, boolean indicative) {
+    public CharacteristicInfo(String uuid, boolean readable, boolean writable, boolean notify, boolean indicative) {
         this.uuid = uuid;
         this.readable = readable;
-        this.writeable = writeable;
+        this.writable = writable;
         this.notify = notify;
         this.indicative = indicative;
     }
@@ -26,7 +26,7 @@ public class CharacteristicInfo implements Serializable {
         return "CharacteristicInfo{" +
                 "uuid='" + uuid + '\'' +
                 ", readable=" + readable +
-                ", writeable=" + writeable +
+                ", writable=" + writable +
                 ", notify=" + notify +
                 ", indicative=" + indicative +
                 '}';

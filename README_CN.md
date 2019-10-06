@@ -209,9 +209,9 @@ notify和indicate都使用以下方法
                ServiceInfo serviceInfo = entry.getKey();
                Log.e("TAG", "service uuid: " + serviceInfo.uuid);
                for (CharacteristicInfo characterInfo : entry.getValue()) {
-                   Log.e("TAG", "chracteristic uuid: " + characterInfo.uuid);
+                   Log.e("TAG", "characteristic uuid: " + characterInfo.uuid);
                    boolean readable = characterInfo.readable;
-                   boolean writeable = characterInfo.writeable;
+                   boolean writable = characterInfo.writable;
                    boolean notification = characterInfo.notify;
                    boolean indicative = characterInfo.indicative;
                }

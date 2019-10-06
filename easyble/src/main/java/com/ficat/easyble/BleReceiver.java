@@ -16,6 +16,10 @@ import java.util.List;
 public class BleReceiver extends BroadcastReceiver {
     private List<BluetoothStateChangedListener> listeners = new ArrayList<>();
 
+    private BleReceiver() {
+
+    }
+
     public static BleReceiver getInstance() {
         return BleReceiverHolder.sBleReceiver;
     }
