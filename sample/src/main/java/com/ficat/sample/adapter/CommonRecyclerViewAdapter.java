@@ -1,4 +1,4 @@
-package com.ficat.sample.adapter.common;
+package com.ficat.sample.adapter;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
@@ -15,7 +15,8 @@ import java.util.List;
  *
  * @param <T> type of item data
  */
-public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter {
+public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter{
+    protected Context mContext;
     private List<T> mDataList;
     private LayoutInflater mInflater;
     private SparseArray<int[]> mResLayoutAndViewIds;
@@ -23,14 +24,15 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
     private OnItemLongClickListener mLongClickListener;
 
     public CommonRecyclerViewAdapter(@NonNull Context context, @NonNull List<T> dataList, @NonNull SparseArray<int[]> resLayoutAndViewIds) {
+        this.mContext = context;
         this.mInflater = LayoutInflater.from(context);
-
-        checkReslayoutAndViewIds(resLayoutAndViewIds);
-        this.mResLayoutAndViewIds = resLayoutAndViewIds;
         this.mDataList = dataList;
+        this.mResLayoutAndViewIds = resLayoutAndViewIds;
+
+        checkResLayoutAndViewIds(resLayoutAndViewIds);
     }
 
-    private void checkReslayoutAndViewIds(@NonNull SparseArray<int[]> resLayoutAndViewIds) {
+    private void checkResLayoutAndViewIds(@NonNull SparseArray<int[]> resLayoutAndViewIds) {
         for (int i = 0; i < resLayoutAndViewIds.size(); i++) {
             int reslayout = resLayoutAndViewIds.keyAt(i);
             int[] viewIds = resLayoutAndViewIds.get(reslayout);
@@ -38,7 +40,7 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
             for (int viewId : viewIds) {
                 View view = itemView.findViewById(viewId);
                 if (view == null) {
-                    throw new IllegalStateException("Some viewIds don't be found in corresponding reslayout");
+                    throw new IllegalStateException("Some viewIds don't be found in corresponding resLayout");
                 }
             }
         }
@@ -89,7 +91,7 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
 
     @Override
     public int getItemViewType(int position) {
-        int type = getItemReslayoutType(position);
+        int type = getItemResLayoutType(position);
         if (mResLayoutAndViewIds.indexOfKey(type) < 0) {
             throw new IllegalStateException("the ResLayoutAndViewIds doesn't contain " + type + " item layout type");
         }
@@ -100,10 +102,10 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
      * @param position the position of item
      * @return item layout type, it must be one key of mResLayoutAndViewIds
      */
-    public abstract int getItemReslayoutType(int position);
+    public abstract int getItemResLayoutType(int position);
 
     /**
-     * bind datas to item
+     * bind data to item
      */
     public abstract void bindDataToItem(MyViewHolder holder, T data, int position);
 
@@ -126,6 +128,6 @@ public abstract class CommonRecyclerViewAdapter<T> extends RecyclerView.Adapter 
     }
 
     public interface OnItemLongClickListener {
-        void onItemLongClick(View itemView, int positiion);
+        void onItemLongClick(View itemView, int position);
     }
 }

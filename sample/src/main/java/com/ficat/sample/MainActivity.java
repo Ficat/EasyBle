@@ -26,7 +26,7 @@ import com.ficat.easypermissions.EasyPermissions;
 import com.ficat.easypermissions.RequestExecutor;
 import com.ficat.easypermissions.bean.Permission;
 import com.ficat.sample.adapter.ScanDeviceAdapter;
-import com.ficat.sample.adapter.common.CommonRecyclerViewAdapter;
+import com.ficat.sample.adapter.CommonRecyclerViewAdapter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,12 +79,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //open bluetooth without a request dialog
         BleManager.toggleBluetooth(true);
 
-        BleManager.Options options = new BleManager.Options();
-        options.loggable = true;
-        options.scanPeriod = 10000;
-        options.connectTimeout = 10000;
-        manager = BleManager.getInstance(getApplication());
-        manager.option(options);
+        BleManager.ScanOptions scanOptions = BleManager.ScanOptions
+                .newInstance()
+                .scanPeriod(8000)
+                .scanDeviceName(null);
+
+        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+                .newInstance()
+                .connectTimeout(12000);
+
+        manager = BleManager
+                .getInstance()
+                .setScanOptions(scanOptions)
+                .setConnectionOptions(connectOptions)
+                .setLog(true, "TAG")
+                .init(this.getApplication());
     }
 
     private void showDevicesByRv() {
@@ -110,8 +119,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onTimeout(BleDevice device) {
-                        Toast.makeText(MainActivity.this, "connect timeout!", Toast.LENGTH_SHORT).show();
+                    public void onFailure(int failCode, String info, BleDevice device) {
+                        Toast.makeText(MainActivity.this, failCode == BleConnectCallback.FAIL_CONNECT_TIMEOUT ?
+                                "connect timeout" : info, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
@@ -120,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onDisconnected(BleDevice device) {
+                    public void onDisconnected(String info, int status, BleDevice device) {
                         adapter.notifyDataSetChanged();
                     }
                 });
@@ -219,7 +229,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
                 Toast.makeText(MainActivity.this, "read rssi fail: " + info, Toast.LENGTH_SHORT).show();
             }
         });
@@ -239,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
                 Toast.makeText(MainActivity.this, "set MTU fail: " + info, Toast.LENGTH_SHORT).show();
             }
         });
@@ -258,12 +268,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         for (Map.Entry<String, String> e : notificationInfo1.entrySet()) {
             manager.write(device1, e.getKey(), e.getValue(), "TestWriteData001".getBytes(), new BleWriteCallback() {
                 @Override
-                public void onWrite(byte[] data, BleDevice device) {
+                public void onWriteSuccess(byte[] data, BleDevice device) {
                     Toast.makeText(MainActivity.this, "write success!   data:  " + new String(data), Toast.LENGTH_LONG).show();
                 }
 
                 @Override
-                public void onFail(int failCode, String info, BleDevice device) {
+                public void onFailure(int failCode, String info, BleDevice device) {
                     Toast.makeText(MainActivity.this, "write fail: " + info, Toast.LENGTH_SHORT).show();
                 }
             });
@@ -289,11 +299,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 @Override
                 public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
-                    Log.e(TAG, "notify succcess: " + notifySuccessUuid);
+                    Log.e(TAG, "notify success: " + notifySuccessUuid);
                 }
 
                 @Override
-                public void onFail(int failCode, String info, BleDevice device) {
+                public void onFailure(int failCode, String info, BleDevice device) {
                     Toast.makeText(MainActivity.this, "set notify fail: " + info, Toast.LENGTH_SHORT).show();
                 }
             });

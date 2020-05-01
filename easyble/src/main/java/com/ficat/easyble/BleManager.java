@@ -8,7 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-
+import android.text.TextUtils;
 
 import com.ficat.easyble.gatt.BleGatt;
 import com.ficat.easyble.gatt.BleGattImpl;
@@ -33,27 +33,35 @@ import java.util.UUID;
 public final class BleManager {
     private Context mContext;
     private BluetoothAdapter mBluetoothAdapter;
-    private Options mOptions;
-    private volatile BleScan<BleScanCallback> mScan;
-    private volatile BleGatt mGatt;
+    private ScanOptions mScanOptions;
+    private ConnectOptions mConnectOptions;
+    private BleScan<BleScanCallback> mScan;
+    private BleGatt mGatt;
+
     private static volatile BleManager instance;
 
-    private final Object mLock1 = new Object();
-    private final Object mLock2 = new Object();
 
-    private BleManager(Context context) {
-        if (mContext == null) {
-            if (context == null) {
-                throw new IllegalArgumentException("Context is null");
-            }
-            if (context instanceof Activity) {
-                Logger.w("Activity Leak Risk: " + context.getClass().getSimpleName());
-            }
-            this.mContext = context;
-            this.mOptions = new Options();
-            this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-            registerBleReceiver();
+    private BleManager() {
+
+    }
+
+    public BleManager init(Context context) {
+        if (mContext != null) {
+            Logger.d("you have called init() already");
+            return this;
         }
+        if (context == null) {
+            throw new IllegalArgumentException("context is null");
+        }
+        if (context instanceof Activity) {
+            Logger.w("Activity Leak Risk:" + context.getClass().getSimpleName());
+        }
+        mContext = context;
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mScan = new BleScanner();
+        mGatt = new BleGattImpl(mContext);
+        registerBleReceiver();
+        return this;
     }
 
     private void registerBleReceiver() {
@@ -62,31 +70,36 @@ public final class BleManager {
         mContext.registerReceiver(BleReceiver.getInstance(), intentFilter);
     }
 
-    public static BleManager getInstance(Context context) {
+    public static BleManager getInstance() {
         if (instance == null) {
             synchronized (BleManager.class) {
                 if (instance == null) {
-                    instance = new BleManager(context);
+                    instance = new BleManager();
                 }
             }
         }
         return instance;
     }
 
-    public void option(Options options) {
-        if (options == null) {
-            options = new Options();
-        }
-        this.mOptions = options;
-        setLoggable(options.loggable);
+    public BleManager setScanOptions(ScanOptions options) {
+        mScanOptions = options;
+        return this;
     }
 
-    private void setLoggable(boolean loggable) {
-        Logger.LOGGABLE = loggable;
+    public BleManager setConnectionOptions(ConnectOptions options) {
+        mConnectOptions = options;
+        return this;
+    }
+
+    public BleManager setLog(boolean enable, String tag) {
+        Logger.SHOW_LOG = enable;
+        if (!TextUtils.isEmpty(tag)) {
+            Logger.TAG = tag;
+        }
+        return this;
     }
 
     public boolean isScanning() {
-        checkBleScan();
         return mScan.isScanning();
     }
 
@@ -94,17 +107,22 @@ public final class BleManager {
      * Scan ble device
      */
     public void startScan(BleScanCallback callback) {
-        checkBleScan();
-        mScan.startScan(mOptions.scanPeriod, mOptions.scanDeviceName, mOptions.scanDeviceAddress,
-                mOptions.scanServiceUuids, callback);
+        startScan(mScanOptions, callback);
+    }
+
+    public void startScan(ScanOptions options, BleScanCallback callback) {
+        if (options == null) {
+            options = ScanOptions.newInstance();
+        }
+        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
+                options.scanServiceUuids, callback);
     }
 
     /**
-     * Stop scaning device, it's strongly recommended that you call this method
-     * to stop scaning after target device has been discovered
+     * Stop scanning device, it's strongly recommended that you call this method
+     * to stop scanning after target device has been discovered
      */
     public void stopScan() {
-        checkBleScan();
         mScan.stopScan();
     }
 
@@ -112,14 +130,24 @@ public final class BleManager {
      * Connect to the remote device
      */
     public void connect(BleDevice device, BleConnectCallback callback) {
-        checkBleGatt();
-        mGatt.connect(mOptions.connectTimeout, device, callback);
+        connect(device, mConnectOptions, callback);
+    }
+
+    public void connect(BleDevice device, ConnectOptions options, BleConnectCallback callback) {
+        if (options == null) {
+            options = ConnectOptions.newInstance();
+        }
+        mGatt.connect(options.connectTimeout, device, callback);
     }
 
     /**
      * Connect to remote device by address
      */
     public void connect(String address, BleConnectCallback callback) {
+        connect(address, mConnectOptions, callback);
+    }
+
+    public void connect(String address, ConnectOptions options, BleConnectCallback callback) {
         checkBluetoothAddress(address);
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         BleDevice bleDevice = newBleDevice(device);
@@ -127,14 +155,13 @@ public final class BleManager {
             Logger.d("new BleDevice fail!");
             return;
         }
-        connect(bleDevice, callback);
+        connect(bleDevice, options, callback);
     }
 
     /**
      * Disconnect from the remote device
      *
      * @param device remote device
-     * @throws IllegalArgumentException if the device is null
      */
     public void disconnect(BleDevice device) {
         if (device == null) {
@@ -150,7 +177,6 @@ public final class BleManager {
      */
     public void disconnect(String address) {
         checkBluetoothAddress(address);
-        checkBleGatt();
         mGatt.disconnect(address);
     }
 
@@ -158,7 +184,6 @@ public final class BleManager {
      * Disconnect all connected devices
      */
     public void disconnectAll() {
-        checkBleGatt();
         mGatt.disconnectAll();
     }
 
@@ -174,7 +199,6 @@ public final class BleManager {
      * @param callback    notification callback
      */
     public void notify(BleDevice device, String serviceUuid, String notifyUuid, BleNotifyCallback callback) {
-        checkBleGatt();
         mGatt.notify(device, serviceUuid, notifyUuid, callback);
     }
 
@@ -186,7 +210,6 @@ public final class BleManager {
      * @param characteristicUuid characteristic uuid you want to stop notifying or indicating
      */
     public void cancelNotify(BleDevice device, String serviceUuid, String characteristicUuid) {
-        checkBleGatt();
         mGatt.cancelNotify(device, serviceUuid, characteristicUuid);
     }
 
@@ -194,7 +217,7 @@ public final class BleManager {
      * Write data to the remote device by specific writable characteristic
      *
      * @param device      remote device
-     * @param serviceUuid serivce uuid that the writable characteristic belongs to
+     * @param serviceUuid service uuid that the writable characteristic belongs to
      * @param writeUuid   characteristic uuid which you write data, note that the
      *                    characteristic must be writable, or it will call back onFail()
      * @param data        data
@@ -202,7 +225,6 @@ public final class BleManager {
      */
     public void write(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                       BleWriteCallback callback) {
-        checkBleGatt();
         mGatt.write(device, serviceUuid, writeUuid, data, callback);
     }
 
@@ -211,7 +233,7 @@ public final class BleManager {
      * device by batch
      *
      * @param device           remote device
-     * @param serviceUuid      serivce uuid that the writable characteristic belongs to
+     * @param serviceUuid      service uuid that the writable characteristic belongs to
      * @param writeUuid        characteristic uuid which you write data, note that the
      *                         characteristic must be writable, or it will call back onFail()
      * @param data             data
@@ -220,7 +242,6 @@ public final class BleManager {
      */
     public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                              int lengthPerPackage, BleWriteByBatchCallback callback) {
-        checkBleGatt();
         mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, callback);
     }
 
@@ -234,7 +255,6 @@ public final class BleManager {
      * @param callback    the read callback
      */
     public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
-        checkBleGatt();
         mGatt.read(device, serviceUuid, readUuid, callback);
     }
 
@@ -245,7 +265,6 @@ public final class BleManager {
      * @param callback result callback
      */
     public void readRssi(BleDevice device, BleRssiCallback callback) {
-        checkBleGatt();
         mGatt.readRssi(device, callback);
     }
 
@@ -257,7 +276,6 @@ public final class BleManager {
      * @param callback result callback
      */
     public void setMtu(BleDevice device, int mtu, BleMtuCallback callback) {
-        checkBleGatt();
         mGatt.setMtu(device, mtu, callback);
     }
 
@@ -265,10 +283,9 @@ public final class BleManager {
      * Get service information which the remote device supports.
      * Note that this method will return null if this device is not connected
      *
-     * @return service infomations,
+     * @return service information
      */
     public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
-        checkBleGatt();
         return mGatt.getDeviceServices(device);
     }
 
@@ -278,7 +295,6 @@ public final class BleManager {
      * @return connected devices list
      */
     public List<BleDevice> getConnectedDevices() {
-        checkBleGatt();
         return mGatt.getConnectedDevices();
     }
 
@@ -302,7 +318,22 @@ public final class BleManager {
     }
 
     /**
-     * Once you finish bluetooth, call this method to release some resources
+     * Return true if local device is connecting with the specific remote device
+     */
+    public boolean isConnecting(String address) {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            return false;
+        }
+        return mGatt.isConnecting(address);
+    }
+
+    /**
+     * Once you finish bluetooth, call this method to release some resources.
+     * <p>
+     * Note that if you want to use BleManager again, you must call init()
+     * again before that
+     *
+     * @see BleManager#init(Context)
      */
     public void destroy() {
         if (mGatt != null) {
@@ -313,11 +344,15 @@ public final class BleManager {
             mScan.destroy();
             mScan = null;
         }
-        unregisterBleReciver();
+        unregisterBleReceiver();
+        mScanOptions = null;
+        mConnectOptions = null;
+        mContext = null;
     }
 
-    private void unregisterBleReciver() {
+    private void unregisterBleReceiver() {
         try {
+            if (mContext == null) return;
             mContext.unregisterReceiver(BleReceiver.getInstance());
         } catch (Exception e) {
             Logger.i("unregistering BleReceiver encounters an exception: " + e.getMessage());
@@ -339,7 +374,7 @@ public final class BleManager {
      * Turn on local bluetooth, calling the method will show users a request dialog
      * to grant or reject,so you can get the result from Activity#onActivityResult()
      *
-     * @param activity    activity, note that to get the result wether users have granted
+     * @param activity    activity, note that to get the result whether users have granted
      *                    or rejected to enable bluetooth, you should handle the method
      *                    onActivityResult() of this activity
      * @param requestCode enable bluetooth request code
@@ -361,7 +396,7 @@ public final class BleManager {
      * Note that a request dialog may still show when you call this method, due to
      * some special Android devices' system may have been modified by manufacturers
      *
-     * @param enable eanble or disable local bluetooth
+     * @param enable enable or disable local bluetooth
      */
     public static void toggleBluetooth(boolean enable) {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -387,8 +422,12 @@ public final class BleManager {
         return adapter != null && adapter.isEnabled();
     }
 
-    public Options getOptions() {
-        return mOptions;
+    public ScanOptions getScanOptions() {
+        return mScanOptions == null ? ScanOptions.newInstance() : mScanOptions;
+    }
+
+    public ConnectOptions getConnectOptions() {
+        return mConnectOptions == null ? ConnectOptions.newInstance() : mConnectOptions;
     }
 
     /**
@@ -399,18 +438,7 @@ public final class BleManager {
      */
     public BluetoothGatt getBluetoothGatt(String address) {
         checkBluetoothAddress(address);
-        checkBleGatt();
         return mGatt.getBluetoothGatt(address);
-    }
-
-    private void checkBleScan() {
-        if (mScan == null) {
-            synchronized (mLock1) {
-                if (mScan == null) {
-                    mScan = new BleScanner();
-                }
-            }
-        }
     }
 
     private void checkBluetoothAddress(String address) {
@@ -419,35 +447,74 @@ public final class BleManager {
         }
     }
 
-    private void checkBleGatt() {
-        if (mGatt == null) {
-            synchronized (mLock2) {
-                if (mGatt == null) {
-                    mGatt = new BleGattImpl(mContext);
-                }
-            }
-        }
-    }
-
     private BleDevice newBleDevice(BluetoothDevice device) {
         Class<?> clasz = BleDevice.class;
         try {
             Constructor<?> constructor = clasz.getDeclaredConstructor(BluetoothDevice.class);
             constructor.setAccessible(true);
-            BleDevice bleDevice = (BleDevice) constructor.newInstance(device);
-            return bleDevice;
+            BleDevice d = (BleDevice) constructor.newInstance(device);
+            return d;
         } catch (Exception e) {
             Logger.i("Encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
             return null;
         }
     }
 
-    public static final class Options {
+    public static final class ScanOptions {
         public int scanPeriod = 12000;
         public String scanDeviceName;
         public String scanDeviceAddress;
         public UUID[] scanServiceUuids;
+
+        private ScanOptions() {
+
+        }
+
+        public static ScanOptions newInstance() {
+            return new ScanOptions();
+        }
+
+        public ScanOptions scanPeriod(int scanPeriod) {
+            if (scanPeriod > 0) {
+                this.scanPeriod = scanPeriod;
+            }
+            return this;
+        }
+
+        public ScanOptions scanDeviceName(String deviceName) {
+            scanDeviceName = deviceName;
+            return this;
+        }
+
+        public ScanOptions scanDeviceAddress(String deviceAddress) {
+            scanDeviceAddress = deviceAddress;
+            return this;
+        }
+
+        public ScanOptions scanServiceUuids(UUID[] serviceUuids) {
+            scanServiceUuids = serviceUuids;
+            return this;
+        }
+
+
+    }
+
+    public static final class ConnectOptions {
         public int connectTimeout = 10000;
-        public boolean loggable = false;
+
+        private ConnectOptions() {
+
+        }
+
+        public static ConnectOptions newInstance() {
+            return new ConnectOptions();
+        }
+
+        public ConnectOptions connectTimeout(int timeout) {
+            if (timeout > 0) {
+                connectTimeout = timeout;
+            }
+            return this;
+        }
     }
 }

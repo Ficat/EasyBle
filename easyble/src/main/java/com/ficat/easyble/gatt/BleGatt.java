@@ -44,5 +44,7 @@ public interface BleGatt {
 
     BluetoothGatt getBluetoothGatt(String address);
 
+    boolean isConnecting(String address);
+
     void destroy();
 }

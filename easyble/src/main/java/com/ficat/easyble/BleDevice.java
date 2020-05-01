@@ -3,7 +3,6 @@ package com.ficat.easyble;
 import android.bluetooth.BluetoothDevice;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 
@@ -18,7 +17,7 @@ public class BleDevice implements Parcelable {
     public String name;
     private BluetoothDevice device;
 
-    BleDevice(@NonNull BluetoothDevice device) {
+    BleDevice(BluetoothDevice device) {
         this.device = device;
         this.address = device.getAddress();
         this.name = device.getName();
@@ -64,7 +63,7 @@ public class BleDevice implements Parcelable {
         this.device = in.readParcelable(BluetoothDevice.class.getClassLoader());
     }
 
-    public static final Parcelable.Creator<BleDevice> CREATOR = new Parcelable.Creator<BleDevice>() {
+    public static final Creator<BleDevice> CREATOR = new Creator<BleDevice>() {
         @Override
         public BleDevice createFromParcel(Parcel source) {
             return new BleDevice(source);

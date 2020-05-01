@@ -25,8 +25,6 @@ import java.util.List;
 import java.util.UUID;
 
 public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.BluetoothStateChangedListener {
-    private static final String TAG = "BleScanner";
-
     protected BluetoothAdapter mBluetoothAdapter;
     private BluetoothAdapter.LeScanCallback mLeScanCallback;//sdk<21 uses this scan callback
     private ScanCallback mScanCallback;//SDK>=21 uses this scan callback
@@ -39,6 +37,12 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     private UUID[] mServiceUuids;
     private volatile boolean mScanning;
     private Handler mHandler;
+    private Runnable mScanTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            stopScan();
+        }
+    };
 
     public BleScanner() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -88,12 +92,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                     }
                 }
             });
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    stopScan();
-                }
-            }, mScanPeriod);
+            mHandler.postDelayed(mScanTimeoutRunnable, mScanPeriod);
         } else {
             mHandler.post(new Runnable() {
                 @Override
@@ -132,6 +131,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                 }
             }
         });
+        mHandler.removeCallbacks(mScanTimeoutRunnable);
     }
 
     @Override
