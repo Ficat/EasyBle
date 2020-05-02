@@ -461,10 +461,10 @@ public final class BleManager {
     }
 
     public static final class ScanOptions {
-        public int scanPeriod = 12000;
-        public String scanDeviceName;
-        public String scanDeviceAddress;
-        public UUID[] scanServiceUuids;
+        private int scanPeriod = 12000;
+        private String scanDeviceName;
+        private String scanDeviceAddress;
+        private UUID[] scanServiceUuids;
 
         private ScanOptions() {
 
@@ -500,7 +500,7 @@ public final class BleManager {
     }
 
     public static final class ConnectOptions {
-        public int connectTimeout = 10000;
+        private int connectTimeout = 10000;
 
         private ConnectOptions() {
 

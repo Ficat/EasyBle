@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v1.0.4'
+    implementation 'com.github.Ficat:EasyBle:v2.0.1'
 }
 ```
 
@@ -34,23 +34,28 @@ dependencies {
 
 ### 步骤如下
 
-### 1.获取BleManager对象
+### 1.获取BleManager对象并初始化
 
 ```java
 
-        //获取管理器对象
-        BleManager bleManager = BleManager.getInstance(this.getApplication());
-        
-        //设置ble选项，可多次设置,EasyBle将使用最新的options。比如本次扫描周期
-        //为10s，但你想要下一次扫描周期更长一些，则再次调用本方法去设置即可
-        BleManager.Options options = new BleManager.Options();
-        options.loggable = true; //是否打印日志
-        options.connectTimeout = 10000; //连接超时时间
-        options.scanPeriod = 12000; //扫描周期
-        options.scanDeviceName = "targetDeviceName"; //扫描的目标设备名
-        options.scanDeviceAddress = "targetDeviceAddress"; //扫描目标设备地址如"DD:0D:30:00:0D:9B"
-        options.scanServiceUuids = serviceUuidArray; //扫描含该服务UUID的目标设备
-        bleManager.option(options);
+        // scan/connection不是必须的，若不设置，那么扫描或连接就
+        // 会使用默认参数
+        BleManager.ScanOptions scanOptions = BleManager.ScanOptions
+                .newInstance()
+                .scanPeriod(10000)
+                .scanDeviceName(null);
+
+        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+                .newInstance()
+                .connectTimeout(12000);
+
+
+        BleManager manager = BleManager
+                .getInstance()
+                .setScanOptions(scanOptions)//非必须设置项
+                .setConnectionOptions(connectOptions)
+                .setLog(true, "TAG")
+                .init(this.getApplication());//这里需要Context，但注意不要传Activity
         
 ```
 
@@ -80,6 +85,8 @@ dependencies {
             }
         });
 
+        //使用指定扫描参数扫描
+        bleManager.startScan(scanOptions, bleScanCallback);
 ```
 当需要结束扫描时用以下方法结束扫描，建议在扫描到目标设备后停止扫描
 ```java
@@ -102,7 +109,12 @@ dependencies {
             }
 
             @Override
-            public void onTimeout(BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
+                if(failCode == BleConnectCallback.FAIL_CONNECT_TIMEOUT){
+                    //连接超时
+                }else{
+                    //其他原因导致的连接失败
+                }
 
             }
 
@@ -112,16 +124,19 @@ dependencies {
             }
 
             @Override
-            public void onDisconnected(BleDevice device) {
+            public void onDisconnected(String info, int status, BleDevice device) {
 
             }
         };
 
-       //通过BleDevice对象连接设备
        bleManager.connect(bleDevice, bleConnectCallback);
+       //使用指定连接选项参数进行连接
+       bleManager.connect(bleDevice, connectOptions, bleConnectCallback);
 
-       //直接通过mac地址连接
-       bleManager.connect(address, bleConnectCallback)
+       //使用mac地址连接
+       bleManager.connect(address, bleConnectCallback);
+       bleManager.connect(address, connectOptions, bleConnectCallback);
+
 ```
 
 当需要断开与设备的连接时可使用以下任一方法断开设备连接
@@ -152,8 +167,16 @@ notify和indicate都使用以下方法
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
-             
+            public void onFailure(int failCode, String info, BleDevice device) {
+                switch (failCode) {
+                    case BleCallback.FAIL_DISCONNECTED://连接断开
+                        break;
+                    case BleCallback.FAIL_OTHER://其他原因
+                        break;
+                    default:
+                        break;
+                }
+
             }
         });
 ```
@@ -171,7 +194,7 @@ notify和indicate都使用以下方法
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
 
             }
         });
@@ -185,7 +208,7 @@ notify和indicate都使用以下方法
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
 
             }
         });

@@ -12,7 +12,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v1.0.4'
+    implementation 'com.github.Ficat:EasyBle:v2.0.1'
 }
 ```
 
@@ -37,25 +37,28 @@ If you want to turn on bluetooth, I strongly recommend you call enableBluetooth(
 ```
 
 ### Step
-### 1.Get ble manager
+### 1.Get ble manager and initialization
 
 ```java
 
-        //Get ble manager
-        BleManager bleManager = BleManager.getInstance(this.getApplication());
+        //scan/connection options is not necessary, if you don't set,
+        //it will use default config
+        BleManager.ScanOptions scanOptions = BleManager.ScanOptions
+                .newInstance()
+                .scanPeriod(10000)
+                .scanDeviceName(null);
 
-        //Set options, you can call this method many times, this framework will use
-        //the newest options. For example,you have set scan period(like 10s), but next
-        //scan you wanna scan period longer(like 15s), so you can call this method again
-        //to set scan period is 15s
-        BleManager.Options options = new BleManager.Options();
-        options.loggable = true; //does it print log?
-        options.connectTimeout = 10000; //connection time out
-        options.scanPeriod = 12000; //scan period
-        options.scanDeviceName = "deviceName"; 
-        options.scanDeviceAddress = "deviceAddress";//like "DD:0D:30:00:0D:9B"
-        options.scanServiceUuids = serviceUuidArray;
-        bleManager.option(options);
+        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+                .newInstance()
+                .connectTimeout(12000);
+
+
+        BleManager bleManager = BleManager
+                        .getInstance()
+                        .setScanOptions(scanOptions)//it is not necessary
+                        .setConnectionOptions(connectOptions)//like scan options
+                        .setLog(true, "TAG")
+                        .init(this.getApplication());//Context is needed here,do not use Activity,which can cause Activity leak
 
 ```
 
@@ -85,6 +88,9 @@ If sdk version >=23, scanning ble must have location permissions
             }
         });
 
+        //start scan with specified scanOptions
+        bleManager.startScan(scanOptions, bleScanCallback);
+
 ```
 
 Once target remote device has been discovered you can use stopScan() to stop scanning
@@ -108,26 +114,34 @@ You can connect to remote device by device address or BleDevice object
             }
 
             @Override
-            public void onTimeout(BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
+                if(failCode == BleConnectCallback.FAIL_CONNECT_TIMEOUT){
+                    //connection timeout
+                }else{
+                    //connection fail due to other reasons
+                }
 
             }
 
-            @Override
-            public void onConnected(BleDevice device) {
+             @Override
+             public void onConnected(BleDevice device) {
 
-            }
+             }
 
-            @Override
-            public void onDisconnected(BleDevice device) {
+             @Override
+             public void onDisconnected(String info, int status, BleDevice device) {
 
-            }
+             }
         };
 
-       //connect to the remote device by BleDevice object 
        bleManager.connect(bleDevice, bleConnectCallback);
+       //connect with specified connectOptions
+       bleManager.connect(bleDevice, connectOptions, bleConnectCallback);
 
-       //connect to the remote device by address
-       bleManager.connect(address, bleConnectCallback)
+       //connect with mac address
+       bleManager.connect(address, bleConnectCallback);
+       bleManager.connect(address, connectOptions, bleConnectCallback);
+
 ```
 
 Use one of the following methods to disconnect from remote device
@@ -139,13 +153,13 @@ Use one of the following methods to disconnect from remote device
        //disconnect from the specific remote device by address
        bleManager.disconnect(address);
 
-       //disconenct all connected devices
+       //disconnect all connected devices
        bleManager.disconnectAll();
 ```
 
 
 ### 4.Notify
-Both notification and indication use the following method to set notfication or indication
+Both notification and indication use the following method to set notification or indication
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
@@ -159,8 +173,16 @@ Both notification and indication use the following method to set notfication or 
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
-             
+            public void onFailure(int failCode, String info, BleDevice device) {
+                switch (failCode) {
+                    case BleCallback.FAIL_DISCONNECTED://connection has disconnected
+                        break;
+                    case BleCallback.FAIL_OTHER://other reason
+                        break;
+                    default:
+                        break;
+                }
+
             }
         });
 ```
@@ -178,7 +200,7 @@ When you want to cancel notification or indication, you can call cancelNotify()
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
 
             }
         });
@@ -193,7 +215,7 @@ if the length of the data you wanna deliver to remote device is larger than MTU(
             }
 
             @Override
-            public void onFail(int failCode, String info, BleDevice device) {
+            public void onFailure(int failCode, String info, BleDevice device) {
 
             }
         });
