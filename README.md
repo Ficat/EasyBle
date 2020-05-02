@@ -1,5 +1,6 @@
 # EasyBle
   EasyBle is a framework used for android BLE, this framework makes android Ble operation simpler and supports basic BLE operations, besides, it also support batch writing data and multi connection
+>The version 1.0.x is no longer maintained , please use or update to the newest version(2.0.x)
 
 [中文文档](https://github.com/Ficat/EasyBle/blob/master/README_CN.md)
 
@@ -51,7 +52,6 @@ If you want to turn on bluetooth, I strongly recommend you call enableBluetooth(
         BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
                 .newInstance()
                 .connectTimeout(12000);
-
 
         BleManager bleManager = BleManager
                         .getInstance()
@@ -195,7 +195,7 @@ When you want to cancel notification or indication, you can call cancelNotify()
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
-            public void onWrite(byte[] data, BleDevice device) {
+            public void onWriteSuccess(byte[] data, BleDevice device) {
 
             }
 

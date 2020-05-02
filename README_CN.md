@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
-
+>由于个人原因不再维护1.0.x，请使用或升级到最新版本（2.0.x）
 ## Gradle dependency
 ```gradle
 allprojects {
@@ -38,8 +38,8 @@ dependencies {
 
 ```java
 
-        // scan/connection不是必须的，若不设置，那么扫描或连接就
-        // 会使用默认参数
+        //scan/connection不是必须的，若不设置，那么扫描或连接就
+        //会使用默认参数
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
                 .scanPeriod(10000)
@@ -48,7 +48,6 @@ dependencies {
         BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
                 .newInstance()
                 .connectTimeout(12000);
-
 
         BleManager manager = BleManager
                 .getInstance()
@@ -189,7 +188,7 @@ notify和indicate都使用以下方法
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
-            public void onWrite(byte[] data, BleDevice device) {
+            public void onWriteSuccess(byte[] data, BleDevice device) {
 
             }
 
