@@ -37,6 +37,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     private UUID[] mServiceUuids;
     private volatile boolean mScanning;
     private Handler mHandler;
+    private BleReceiver mReceiver;
     private Runnable mScanTimeoutRunnable = new Runnable() {
         @Override
         public void run() {
@@ -44,11 +45,14 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         }
     };
 
-    public BleScanner() {
+    public BleScanner(BleReceiver bleReceiver) {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mHandler = new Handler(Looper.getMainLooper());
+        mReceiver = bleReceiver;
         //register BluetoothStateChangedListener
-        BleReceiver.getInstance().registerBluetoothStateChangedListener(this);
+        if (mReceiver != null) {
+            mReceiver.registerBluetoothStateChangedListener(this);
+        }
     }
 
     @Override
@@ -152,7 +156,9 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         //remove scan period delayed message
         mHandler.removeCallbacksAndMessages(null);
         //unregister BluetoothStateChangedListener
-        BleReceiver.getInstance().unregisterBluetoothStateChangedListener(this);
+        if (mReceiver != null) {
+            mReceiver.unregisterBluetoothStateChangedListener(this);
+        }
     }
 
     private boolean scanByOldApi() {

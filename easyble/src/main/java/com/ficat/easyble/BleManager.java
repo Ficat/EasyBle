@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
+import android.os.Build;
 import android.text.TextUtils;
 
 import com.ficat.easyble.gatt.BleGatt;
@@ -37,6 +39,7 @@ public final class BleManager {
     private ConnectOptions mConnectOptions;
     private BleScan<BleScanCallback> mScan;
     private BleGatt mGatt;
+    private BleReceiver mReceiver;
 
     private static volatile BleManager instance;
 
@@ -58,7 +61,8 @@ public final class BleManager {
         }
         mContext = context;
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        mScan = new BleScanner();
+        mReceiver = new BleReceiver();
+        mScan = new BleScanner(mReceiver);
         mGatt = new BleGattImpl(mContext);
         registerBleReceiver();
         return this;
@@ -67,7 +71,7 @@ public final class BleManager {
     private void registerBleReceiver() {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        mContext.registerReceiver(BleReceiver.getInstance(), intentFilter);
+        mContext.registerReceiver(mReceiver, intentFilter);
     }
 
     public static BleManager getInstance() {
@@ -113,6 +117,9 @@ public final class BleManager {
     public void startScan(ScanOptions options, BleScanCallback callback) {
         if (options == null) {
             options = ScanOptions.newInstance();
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
+            Logger.i("For this device,scanning may need GPS,you'd better turn on GPS to avoid scanning doesn't work");
         }
         mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
                 options.scanServiceUuids, callback);
@@ -347,13 +354,14 @@ public final class BleManager {
         unregisterBleReceiver();
         mScanOptions = null;
         mConnectOptions = null;
+        mReceiver = null;
         mContext = null;
     }
 
     private void unregisterBleReceiver() {
         try {
             if (mContext == null) return;
-            mContext.unregisterReceiver(BleReceiver.getInstance());
+            mContext.unregisterReceiver(mReceiver);
         } catch (Exception e) {
             Logger.i("unregistering BleReceiver encounters an exception: " + e.getMessage());
         }
@@ -422,6 +430,16 @@ public final class BleManager {
         return adapter != null && adapter.isEnabled();
     }
 
+    /**
+     * Check if the address is valid
+     *
+     * @param address mac address
+     * @return true if the address is valid
+     */
+    public static boolean isAddressValid(String address) {
+        return BluetoothAdapter.checkBluetoothAddress(address);
+    }
+
     public ScanOptions getScanOptions() {
         return mScanOptions == null ? ScanOptions.newInstance() : mScanOptions;
     }
@@ -445,6 +463,15 @@ public final class BleManager {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
             throw new IllegalArgumentException("Invalid address: " + address);
         }
+    }
+
+    private boolean isGpsOn() {
+        if (mContext == null) {
+            return false;
+        }
+        LocationManager locationManager
+                = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
     private BleDevice newBleDevice(BluetoothDevice device) {

@@ -1,7 +1,10 @@
 package com.ficat.sample;
 
 import android.Manifest;
+import android.content.Context;
 import android.graphics.Rect;
+import android.location.LocationManager;
+import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -146,9 +149,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (!BleManager.isBluetoothOn()) {
                     BleManager.toggleBluetooth(true);
                 }
+                //for most devices whose version is over Android6,scanning may need GPS permission
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
+                    Toast.makeText(this, "Please turn on GPS before scanning", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 EasyPermissions
                         .with(this)
-                        .request(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        .request(Manifest.permission.ACCESS_FINE_LOCATION)
                         .autoRetryWhenUserRefuse(true, null)
                         .result(new RequestExecutor.ResultReceiver() {
                             @Override
@@ -334,5 +342,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
         return map;
+    }
+
+    private boolean isGpsOn() {
+        LocationManager locationManager
+                = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 }

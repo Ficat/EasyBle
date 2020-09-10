@@ -77,12 +77,10 @@ public class BleGattImpl implements BleGatt {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, final int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                gatt.close();
-            }
             String address = gatt.getDevice().getAddress();
             Map.Entry<BleDevice, BleConnectCallback> entry = findMapEntry(mConnectCallbackMap, address);
             if (entry == null) {
+                gatt.close();
                 return;
             }
             final BleConnectCallback callback = entry.getValue();
@@ -110,6 +108,7 @@ public class BleGattImpl implements BleGatt {
                         break;
                 }
             } else {
+                gatt.close();
                 removeDevice(device);
                 if (device.connecting) {
                     device.connecting = false;
@@ -353,8 +352,6 @@ public class BleGattImpl implements BleGatt {
                     callback.onStart(true, "Start connection success!", device);
                 }
             });
-            //using sendMessageDelayed() rather than postDelayed() to send connection timeout
-            //message just for removing the delayed message easily when device has been connected
             Message msg = Message.obtain(mHandler, new Runnable() {
                 @Override
                 public void run() {

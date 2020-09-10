@@ -16,18 +16,6 @@ import java.util.List;
 public class BleReceiver extends BroadcastReceiver {
     private List<BluetoothStateChangedListener> listeners = new ArrayList<>();
 
-    private BleReceiver() {
-
-    }
-
-    public static BleReceiver getInstance() {
-        return BleReceiverHolder.sBleReceiver;
-    }
-
-    private static class BleReceiverHolder {
-        static final BleReceiver sBleReceiver = new BleReceiver();
-    }
-
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
