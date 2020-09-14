@@ -40,7 +40,7 @@ public interface BleGatt {
 
     List<BleDevice> getConnectedDevices();
 
-    Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device);
+    Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(String address);
 
     BluetoothGatt getBluetoothGatt(String address);
 

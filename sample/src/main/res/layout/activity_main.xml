@@ -11,34 +11,15 @@
     <Button
         android:id="@+id/btn_scan"
         style="@style/ButtonStyle"
+        android:layout_marginLeft="12dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginRight="12dp"
+        android:background="@drawable/selector_btn_common"
+        android:gravity="center"
         android:text="@string/start_scan" />
 
-    <Button
-        android:id="@+id/btn_notify"
-        style="@style/ButtonStyle"
-        android:text="@string/notify" />
-
-    <Button
-        android:id="@+id/btn_write"
-        style="@style/ButtonStyle"
-        android:text="@string/write" />
-
-    <Button
-        android:id="@+id/btn_read_rssi"
-        style="@style/ButtonStyle"
-        android:text="@string/read_rssi" />
-
-    <Button
-        android:id="@+id/btn_mtu"
-        style="@style/ButtonStyle"
-        android:text="@string/set_mtu" />
-
-    <Button
-        android:id="@+id/btn_disconnect"
-        style="@style/ButtonStyle"
-        android:text="@string/disconnect" />
-
     <android.support.v7.widget.RecyclerView
+        android:layout_marginTop="15dp"
         android:id="@+id/rv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

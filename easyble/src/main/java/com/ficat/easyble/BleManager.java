@@ -293,7 +293,23 @@ public final class BleManager {
      * @return service information
      */
     public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
-        return mGatt.getDeviceServices(device);
+        if (device == null) {
+            return null;
+        }
+        return getDeviceServices(device.address);
+    }
+
+    /**
+     * Get service information which the remote device supports.
+     * Note that this method will return null if this device is not connected
+     *
+     * @return service information
+     */
+    public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(String address) {
+        if (!isAddressValid(address)) {
+            return null;
+        }
+        return mGatt.getDeviceServices(address);
     }
 
     /**

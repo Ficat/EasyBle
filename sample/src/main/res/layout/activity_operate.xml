@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:divider="@color/bg_divider"
+    android:orientation="vertical"
+    android:showDividers="middle">
+
+    <TextView
+        android:id="@+id/tv_device_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:padding="6dp"
+        android:textSize="14sp"
+        tools:text="device_name" />
+
+    <TextView
+        android:id="@+id/tv_device_address"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:padding="6dp"
+        android:textSize="14sp"
+        tools:text="device_address" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="6dp">
+
+        <TextView
+            android:id="@+id/tv_connection_state_title"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="5dp"
+            android:gravity="center"
+            android:text="@string/device_connection_state_prefix"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_connection_state"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="5dp"
+            android:gravity="center"
+            android:textSize="14sp"
+            tools:text="disconnected" />
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:padding="5dp"
+        android:weightSum="3">
+
+        <TextView
+            android:id="@+id/tv_connect"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/selector_btn_common"
+            android:gravity="center"
+            android:text="@string/connect"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_disconnect"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/selector_btn_common"
+            android:gravity="center"
+            android:text="@string/disconnect"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_read_rssi"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/selector_btn_common"
+            android:gravity="center"
+            android:text="@string/read_rssi"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_notify_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:lineSpacingMultiplier="1.3"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp"
+        android:textColor="@color/bright_red"
+        android:textSize="15sp"
+        tools:text="here is notification or indication info" />
+
+    <TextView
+        android:id="@+id/tv_current_operate_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:lineSpacingMultiplier="1.2"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp"
+        android:text="@string/tips_current_operate_uuid"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tv_notify_or_indicate"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:background="@drawable/selector_btn_common"
+        android:gravity="center"
+        android:text="@string/notify_indicate"
+        android:textSize="16sp" />
+
+    <LinearLayout
+        android:id="@+id/ll_read"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:divider="@color/bg_divider"
+        android:orientation="horizontal"
+        android:padding="5dp"
+        android:showDividers="middle"
+        android:weightSum="4">
+
+        <TextView
+            android:id="@+id/tv_read"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/selector_btn_common"
+            android:gravity="center"
+            android:text="@string/read"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_read_result"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_weight="3"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            tools:text="read result" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/ll_write"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:divider="@color/bg_divider"
+        android:padding="5dp"
+        android:showDividers="middle"
+        android:weightSum="4">
+
+        <TextView
+            android:id="@+id/tv_write"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/selector_btn_common"
+            android:gravity="center"
+            android:text="write"
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="5dp"
+            android:layout_weight="3"
+            android:orientation="vertical"
+            android:weightSum="2">
+
+            <EditText
+                android:id="@+id/et_write"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:hint="@string/tips_write_operate_input"
+                android:paddingEnd="10dp"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_write_result"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="2"
+                android:textSize="14sp"
+                tools:text="write result" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ExpandableListView
+        android:id="@+id/elv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="10dp" />
+</LinearLayout>

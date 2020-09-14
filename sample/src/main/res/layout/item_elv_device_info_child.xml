@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tv_characteristic_uuid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="16dp"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:lineSpacingMultiplier="1.2"
+        android:maxLines="2"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textColor="#333333"
+        android:textSize="15sp"
+        tools:text="characteristic_uuid" />
+
+    <TextView
+        android:id="@+id/tv_characteristic_attribution"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:paddingBottom="5dp"
+        android:textColor="@android:color/holo_green_light"
+        android:textSize="14sp"
+        tools:text="Read" />
+</LinearLayout>

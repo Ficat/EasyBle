@@ -668,9 +668,11 @@ public class BleGattImpl implements BleGatt {
     }
 
     @Override
-    public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(BleDevice device) {
-        checkNotNull(device, BleDevice.class);
-        return mServicesMap.get(device.address);
+    public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(String address) {
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+            return null;
+        }
+        return mServicesMap.get(address);
     }
 
     @Override
@@ -849,7 +851,7 @@ public class BleGattImpl implements BleGatt {
         return mConnectedDevices.size() >= MAX_CONNECTION_NUM;
     }
 
-    private final class OperationIdentify {
+    private static final class OperationIdentify {
         String address;
         String serviceUuid;
         String characteristicUuid;

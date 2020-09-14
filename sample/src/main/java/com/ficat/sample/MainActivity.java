@@ -2,6 +2,7 @@ package com.ficat.sample;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Rect;
 import android.location.LocationManager;
 import android.os.Build;
@@ -17,13 +18,6 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
-import com.ficat.easyble.gatt.bean.CharacteristicInfo;
-import com.ficat.easyble.gatt.bean.ServiceInfo;
-import com.ficat.easyble.gatt.callback.BleConnectCallback;
-import com.ficat.easyble.gatt.callback.BleMtuCallback;
-import com.ficat.easyble.gatt.callback.BleNotifyCallback;
-import com.ficat.easyble.gatt.callback.BleRssiCallback;
-import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easypermissions.EasyPermissions;
 import com.ficat.easypermissions.RequestExecutor;
@@ -32,16 +26,10 @@ import com.ficat.sample.adapter.ScanDeviceAdapter;
 import com.ficat.sample.adapter.CommonRecyclerViewAdapter;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private final static String TAG = "EasyBle";
-
-    private final static int CHARACTERISTIC_READABLE = 101;
-    private final static int CHARACTERISTIC_WRITABLE = 102;
-    private final static int CHARACTERISTIC_NOTIFICATION = 103;
 
     private RecyclerView rv;
     private BleManager manager;
@@ -59,19 +47,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void initView() {
         Button btnScan = findViewById(R.id.btn_scan);
-        Button btnDisconnect = findViewById(R.id.btn_disconnect);
-        Button btnNotify = findViewById(R.id.btn_notify);
-        Button btnWrite = findViewById(R.id.btn_write);
-        Button btnReadRssi = findViewById(R.id.btn_read_rssi);
-        Button btnMtu = findViewById(R.id.btn_mtu);
         rv = findViewById(R.id.rv);
 
         btnScan.setOnClickListener(this);
-        btnDisconnect.setOnClickListener(this);
-        btnNotify.setOnClickListener(this);
-        btnWrite.setOnClickListener(this);
-        btnReadRssi.setOnClickListener(this);
-        btnMtu.setOnClickListener(this);
     }
 
     private void initBleManager() {
@@ -95,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .getInstance()
                 .setScanOptions(scanOptions)
                 .setConnectionOptions(connectOptions)
-                .setLog(true, "TAG")
+                .setLog(true, "EasyBle")
                 .init(this.getApplication());
     }
 
@@ -115,28 +93,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onItemClick(View itemView, int position) {
                 manager.stopScan();
-                manager.connect(deviceList.get(position), new BleConnectCallback() {
-                    @Override
-                    public void onStart(boolean startConnectSuccess, String info, BleDevice device) {
-                        Log.e(TAG, "start connecting = " + startConnectSuccess + "     info: " + info);
-                    }
-
-                    @Override
-                    public void onFailure(int failCode, String info, BleDevice device) {
-                        Toast.makeText(MainActivity.this, failCode == BleConnectCallback.FAIL_CONNECT_TIMEOUT ?
-                                "connect timeout" : info, Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onConnected(BleDevice device) {
-                        adapter.notifyDataSetChanged();
-                    }
-
-                    @Override
-                    public void onDisconnected(String info, int status, BleDevice device) {
-                        adapter.notifyDataSetChanged();
-                    }
-                });
+                BleDevice device = deviceList.get(position);
+                Intent intent = new Intent(MainActivity.this, OperateActivity.class);
+                intent.putExtra(OperateActivity.KEY_DEVICE_INFO, device);
+                startActivity(intent);
             }
         });
         rv.setAdapter(adapter);
@@ -151,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 //for most devices whose version is over Android6,scanning may need GPS permission
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-                    Toast.makeText(this, "Please turn on GPS before scanning", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
                     return;
                 }
                 EasyPermissions
@@ -167,27 +127,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     }
                                 } else {
                                     Toast.makeText(MainActivity.this,
-                                            "Please go to settings to grant location permission manually",
+                                            getResources().getString(R.string.tips_go_setting_to_grant_location),
                                             Toast.LENGTH_LONG).show();
                                     EasyPermissions.goToSettingsActivity(MainActivity.this);
                                 }
                             }
                         });
-                break;
-            case R.id.btn_disconnect:
-                manager.disconnectAll();
-                break;
-            case R.id.btn_notify:
-                testNotify();
-                break;
-            case R.id.btn_write:
-                testWrite();
-                break;
-            case R.id.btn_read_rssi:
-                testReadRssi();
-                break;
-            case R.id.btn_mtu:
-                testSetMtu();
                 break;
             default:
                 break;
@@ -221,127 +166,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Log.e(TAG, "scan finish");
             }
         });
-    }
-
-    private void testReadRssi() {
-        if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        //we use the first connected device to test
-        BleDevice device2 = manager.getConnectedDevices().get(0);
-        manager.readRssi(device2, new BleRssiCallback() {
-            @Override
-            public void onRssi(int rssi, BleDevice bleDevice) {
-                Toast.makeText(MainActivity.this, "Rssi: " + rssi, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(int failCode, String info, BleDevice device) {
-                Toast.makeText(MainActivity.this, "read rssi fail: " + info, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void testSetMtu() {
-        if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        //we use the first connected device to test
-        BleDevice device3 = manager.getConnectedDevices().get(0);
-        manager.setMtu(device3, 128, new BleMtuCallback() {
-            @Override
-            public void onMtuChanged(int mtu, BleDevice device) {
-                Toast.makeText(MainActivity.this, "Request MTU success: " + mtu, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(int failCode, String info, BleDevice device) {
-                Toast.makeText(MainActivity.this, "set MTU fail: " + info, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-
-    private void testWrite() {
-        if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        //we use the first connected device to test
-        BleDevice device1 = manager.getConnectedDevices().get(0);
-        //randomly finding a writable characteristic to test
-        Map<String, String> notificationInfo1 = getSpecificServiceInfo(device1, CHARACTERISTIC_WRITABLE);
-        for (Map.Entry<String, String> e : notificationInfo1.entrySet()) {
-            manager.write(device1, e.getKey(), e.getValue(), "TestWriteData001".getBytes(), new BleWriteCallback() {
-                @Override
-                public void onWriteSuccess(byte[] data, BleDevice device) {
-                    Toast.makeText(MainActivity.this, "write success!   data:  " + new String(data), Toast.LENGTH_LONG).show();
-                }
-
-                @Override
-                public void onFailure(int failCode, String info, BleDevice device) {
-                    Toast.makeText(MainActivity.this, "write fail: " + info, Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-    }
-
-    private void testNotify() {
-        if (manager.getConnectedDevices().size() <= 0) {
-            Toast.makeText(MainActivity.this, "No connected devices", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        //we use the first connected device to test
-        BleDevice device = manager.getConnectedDevices().get(0);
-        //randomly finding a characteristic supporting notification to test
-        Map<String, String> notificationInfo = getSpecificServiceInfo(device, CHARACTERISTIC_NOTIFICATION);
-        for (final Map.Entry<String, String> e : notificationInfo.entrySet()) {
-            manager.notify(device, e.getKey(), e.getValue(), new BleNotifyCallback() {
-                @Override
-                public void onCharacteristicChanged(byte[] data, BleDevice device) {
-                    Toast.makeText(MainActivity.this, "receive notification data" + new String(data), Toast.LENGTH_SHORT).show();
-                }
-
-                @Override
-                public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
-                    Log.e(TAG, "notify success: " + notifySuccessUuid);
-                }
-
-                @Override
-                public void onFailure(int failCode, String info, BleDevice device) {
-                    Toast.makeText(MainActivity.this, "set notify fail: " + info, Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-    }
-
-    /**
-     * randomly finding a characteristic supporting specific property ,and using the characteristic
-     * to test like notify() or write()
-     *
-     * @return the map-value is the uuid of characteristic used for test,and the map-key is the
-     * uuid of service that contains this characteristic
-     */
-    private Map<String, String> getSpecificServiceInfo(BleDevice device, int characteristicProperty) {
-        Map<String, String> map = new HashMap<>();
-        Map<ServiceInfo, List<CharacteristicInfo>> serviceInfo = manager.getDeviceServices(device);
-        for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfo.entrySet()) {
-            String serviceUuid = entry.getKey().uuid;
-            for (CharacteristicInfo charInfo : entry.getValue()) {
-                boolean specificReadable = characteristicProperty == CHARACTERISTIC_READABLE && charInfo.readable;
-                boolean specificWritable = characteristicProperty == CHARACTERISTIC_WRITABLE && charInfo.writable;
-                boolean specificNotify = characteristicProperty == CHARACTERISTIC_NOTIFICATION && (charInfo.notify ||
-                        charInfo.indicative);
-                if (specificReadable || specificWritable || specificNotify) {
-                    map.put(serviceUuid, charInfo.uuid);
-                }
-            }
-        }
-        return map;
     }
 
     private boolean isGpsOn() {

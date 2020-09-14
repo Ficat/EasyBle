@@ -24,17 +24,9 @@ public class ScanDeviceAdapter extends CommonRecyclerViewAdapter<BleDevice> {
 
     @Override
     public void bindDataToItem(CommonRecyclerViewAdapter.MyViewHolder holder, BleDevice data, int position) {
-        TextView name = (TextView) holder.mViews.get(R.id.tv_name);
-        TextView address = (TextView) holder.mViews.get(R.id.tv_address);
-        TextView connectionState = (TextView) holder.mViews.get(R.id.tv_connection_state);
-        name.setText(data.name);
-        address.setText(data.address);
-        if (data.connected) {
-            connectionState.setTextColor(mContext.getResources().getColor(R.color.bright_blue));
-            connectionState.setText("connected");
-        } else {
-            connectionState.setTextColor(mContext.getResources().getColor(R.color.bright_red));
-            connectionState.setText("disconnected");
-        }
+        TextView tvName = (TextView) holder.mViews.get(R.id.tv_name);
+        TextView tvAddress = (TextView) holder.mViews.get(R.id.tv_address);
+        tvName.setText(data.name);
+        tvAddress.setText(data.address);
     }
 }
