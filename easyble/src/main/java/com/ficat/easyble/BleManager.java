@@ -249,7 +249,25 @@ public final class BleManager {
      */
     public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                              int lengthPerPackage, BleWriteByBatchCallback callback) {
-        mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, callback);
+        mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, 0L, callback);
+    }
+
+    /**
+     * Write by batch, you can use this method to split data and deliver it to remote
+     * device by batch
+     *
+     * @param device           remote device
+     * @param serviceUuid      service uuid that the writable characteristic belongs to
+     * @param writeUuid        characteristic uuid which you write data, note that the
+     *                         characteristic must be writable, or it will call back onFail()
+     * @param data             data
+     * @param lengthPerPackage data length per package
+     * @param writeDelay       the interval of packages
+     * @param callback         result callback
+     */
+    public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
+                             int lengthPerPackage, long writeDelay, BleWriteByBatchCallback callback) {
+        mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, writeDelay, callback);
     }
 
     /**

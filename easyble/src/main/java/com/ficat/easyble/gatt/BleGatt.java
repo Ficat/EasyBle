@@ -32,7 +32,7 @@ public interface BleGatt {
 
     void write(BleDevice device, String serviceUuid, String writeUuid, byte[] data, BleWriteCallback callback);
 
-    void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data, int lengthPerPackage, BleWriteByBatchCallback callback);
+    void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data, int lengthPerPackage, long writeDelay, BleWriteByBatchCallback callback);
 
     void readRssi(BleDevice device, BleRssiCallback callback);
 

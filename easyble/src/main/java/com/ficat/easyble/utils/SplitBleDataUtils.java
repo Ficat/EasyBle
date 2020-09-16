@@ -1,11 +1,11 @@
 package com.ficat.easyble.utils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class SplitBleDataUtils {
-    public static List<byte[]> getBatchData(byte[] originalData, int lengthPerPackage) {
-        List<byte[]> batchData = new ArrayList<>();
+    public static Queue<byte[]> getBatchData(byte[] originalData, int lengthPerPackage) {
+        Queue<byte[]> batchData = new LinkedList<>();
         int packageNumber = (originalData.length % lengthPerPackage == 0) ?
                 originalData.length / lengthPerPackage :
                 originalData.length / lengthPerPackage + 1;
@@ -15,7 +15,7 @@ public class SplitBleDataUtils {
             if (i == packageNumber) {
                 end = originalData.length - 1;
             }
-            batchData.add(getSpecifyIndexBytes(originalData, start, end));
+            batchData.offer(getSpecifyIndexBytes(originalData, start, end));
         }
         return batchData;
     }

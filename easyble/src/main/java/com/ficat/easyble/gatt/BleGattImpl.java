@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -563,7 +564,7 @@ public class BleGattImpl implements BleGatt {
 
     @Override
     public void writeByBatch(BleDevice device, final String serviceUuid, final String writeUuid,
-                             final byte[] writeData, int lengthPerPackage, final BleWriteByBatchCallback callback) {
+                             final byte[] writeData, int lengthPerPackage, final long writeDelay, final BleWriteByBatchCallback callback) {
         checkNotNull(callback, BleWriteByBatchCallback.class);
         if (writeData == null || writeData.length == 0) {
             callback.onFailure(BleCallback.FAIL_OTHER, "writeData is null or no writing data", device);
@@ -573,26 +574,35 @@ public class BleGattImpl implements BleGatt {
             callback.onFailure(BleCallback.FAIL_OTHER, "lengthPerPackage is invalid, it must range from 1 to 509", device);
             return;
         }
-        final List<byte[]> byteList = SplitBleDataUtils.getBatchData(writeData, lengthPerPackage);
-        if (byteList.size() > 0) {
-            BleWriteCallback writeCallback = new BleWriteCallback() {
-                @Override
-                public void onWriteSuccess(byte[] data, BleDevice device) {
-                    byteList.remove(0);
-                    if (byteList.size() != 0) {
-                        write(device, serviceUuid, writeUuid, byteList.get(0), this);
+        final Queue<byte[]> queue = SplitBleDataUtils.getBatchData(writeData, lengthPerPackage);
+        if (queue.size() <= 0) return;
+        BleWriteCallback writeCallback = new BleWriteCallback() {
+            @Override
+            public void onWriteSuccess(byte[] data, final BleDevice device) {
+                final BleWriteCallback c = this;
+                final byte[] next = queue.poll();
+                if (next != null) {
+                    if (writeDelay <= 0) {
+                        write(device, serviceUuid, writeUuid, next, c);
                     } else {
-                        callback.writeByBatchSuccess(writeData, device);
+                        mHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                write(device, serviceUuid, writeUuid, next, c);
+                            }
+                        }, writeDelay);
                     }
+                } else {
+                    callback.writeByBatchSuccess(writeData, device);
                 }
+            }
 
-                @Override
-                public void onFailure(int failCode, String info, BleDevice device) {
-                    callback.onFailure(failCode, info, device);
-                }
-            };
-            write(device, serviceUuid, writeUuid, byteList.get(0), writeCallback);
-        }
+            @Override
+            public void onFailure(int failCode, String info, BleDevice device) {
+                callback.onFailure(failCode, info, device);
+            }
+        };
+        write(device, serviceUuid, writeUuid, queue.poll(), writeCallback);
     }
 
     @Override
