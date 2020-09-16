@@ -183,7 +183,10 @@ public final class BleManager {
      * @param address remote device address
      */
     public void disconnect(String address) {
-        checkBluetoothAddress(address);
+        if (!isAddressValid(address)) {
+            Logger.d("disconnect fail because of invalid address:" + address);
+            return;
+        }
         mGatt.disconnect(address);
     }
 
