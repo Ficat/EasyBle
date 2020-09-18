@@ -19,8 +19,7 @@ dependencies {
 
 ## Usage
  The framework uses BleManager to manager BLE
-### Some basic useful api in BleManager
-If you want to turn on bluetooth, I strongly recommend you call enableBluetooth() rather than toggleBluetooth(true), due to you can receive result message from Activity#onActivityResult if using enableBluetooth() to enable bluetooth
+### 1.Check if the device supports BLE and turn on bluetooth
 ```java
         //check if the device supports BLE
         BleManager.supportBle(context);
@@ -28,17 +27,13 @@ If you want to turn on bluetooth, I strongly recommend you call enableBluetooth(
         //is Bluetooth turned on?
         BleManager.isBluetoothOn();
         
-        //turn on or off bluetooth without showing users a request
-        //dialog, except some special android devices 
-        BleManager.toggleBluetooth(true); 
-        
-        //turn on bluetooth with a request dialog, you can receive the
-        //result from the method onActivityResult() of this activity
+        //If Bluetooth is turned off, you should call BleManager#enableBluetooth() to
+        //turn on bluetooth with a request dialog, and you will receive the result from
+        //the method onActivityResult() of this activity
         BleManager.enableBluetooth(activity,requestCode);
 ```
 
-### Step
-### 1.Get ble manager and initialization
+### 2.Get ble manager and initialization
 
 ```java
 
@@ -62,8 +57,8 @@ If you want to turn on bluetooth, I strongly recommend you call enableBluetooth(
 
 ```
 
-### 2.Scan
-If sdk version >=23, scanning ble must have location permissions
+### 3.Scan
+If sdk version >=23, scanning must have location permission，if Android version sdk version >=29(Android10), scanning must have fine location permission(*Manifest.permission.ACCESS_FINE_LOCATION*)
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
@@ -98,7 +93,7 @@ Once target remote device has been discovered you can use stopScan() to stop sca
         bleManager.stopScan();
 ```
 
-### 3.Connect
+### 4.Connect
 You can connect to remote device by device address or BleDevice object
 ```java
 
@@ -158,7 +153,7 @@ Use one of the following methods to disconnect from remote device
 ```
 
 
-### 4.Notify
+### 5.Notify
 Both notification and indication use the following method to set notification or indication
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
@@ -191,7 +186,7 @@ When you want to cancel notification or indication, you can call cancelNotify()
        bleManager.cancelNotify(bleDevice, notifyUuid);
 ```
 
-### 5.Write 
+### 6.Write
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
@@ -221,7 +216,7 @@ if the length of the data you wanna deliver to remote device is larger than MTU(
         });
 ```
 
-### 6.Destroy
+### 7.Destroy
 You must call destroy() to release some resources after BLE communication end
 ```java
        bleManager.destroy();
@@ -229,48 +224,24 @@ You must call destroy() to release some resources after BLE communication end
 ```
 
 ### Other api
-```java
-
-       //get service infomations which the remote supports,it may return
-       //null if the remote device is not connected
-       bleManager.getDeviceServices(bleDevice);
-
-       Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
-       if (serviceInfoMap != null){
-           for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {
-               ServiceInfo serviceInfo = entry.getKey();
-               Log.e("TAG", "service uuid: " + serviceInfo.uuid);
-               for (CharacteristicInfo characterInfo : entry.getValue()) {
-                   Log.e("TAG", "characteristic uuid: " + characterInfo.uuid);
-                   boolean readable = characterInfo.readable;
-                   boolean writable = characterInfo.writable;
-                   boolean notification = characterInfo.notify;
-                   boolean indicative = characterInfo.indicative;
-               }
-           }
-       }
-
-
-       //read characteristic data
-       bleManager.read(bleDevice, serviceUuid, readUuid, bleReadCallback);
-
-    
-       //read the remote device's rssi
-       bleManager.readRssi(bleDevice, bleRssiCallback);
-
-
-       //set mtu
-       bleManager.setMtu(bleDevice, mtu, bleMtuCallback);
-
-
-       //get a list of current connected devices 
-       bleManager.getConnectedDevices(); 
-
-
-       //check if the local bluetooth has connected to the remote device
-       bleManager.isConnected(address);
-
-```
+|Method|Description|
+|------|-----------|
+|**read**(BleDevice bleDevice, String serviceUuid, String readUuid, BleReadCallback bleReadCallback)|Read the characteristic data|
+|**readRssi**(BleDevice device, BleRssiCallback callback)|Read the remote device rssi(Received Signal Strength Indication)|
+|**setMtu**(BleDevice device, int mtu, BleMtuCallback callback)|Set MTU (Maximum Transmission Unit)|
+|isAddressValid(String address)|Check if the address is valid|
+|isScanning()|Is Scanning?|
+|isConnected(String address)|Check if the local bluetooth has connected to the remote device|
+|isConnecting(String address)|Check if local device is connecting with the remote device|
+|getConnectedDevices()|Get connected devices list|
+|getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|Get service information which the remote device supports,note that it may return null. you will get a **Map<ServiceInfo, List<CharacteristicInfo>>**<br>ServiceInfo: get service uuid info like *uuid*.<br>CharacteristicInfo: get characteristic info like *uuid* and *property*(readable,writable,notify,indicative).|
+|*supportBle(Context context)*|Check if this device supports ble|
+|*isBluetoothOn()*|Check if local bluetooth is enabled|
+|*enableBluetooth(Activity activity, int requestCode)*|Turn on local bluetooth, calling the method will show users a request dialog to grant or reject,so you can get the result from Activity#onActivityResult()|
+|*toggleBluetooth(boolean enable)*|Turn on or off local bluetooth directly without showing users a request dialog|
+|getScanOptions()|Get the scan option you set or default|
+|getConnectOptions()|Get the connection option you set or default|
+|getBluetoothGatt(String address)|Get the BluetoothGatt object of specific remote device,it will return null if the connection isn't established|
 
 
 

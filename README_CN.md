@@ -17,24 +17,20 @@ dependencies {
 
 ## Usage
  本库主要通过BleManager类来进行BLE操作
-### BleManager中常用基础api
+### 1.判断设备是否支持BLE并打开蓝牙
 ```java
         //是否支持BLE
         BleManager.supportBle(context);
 
         //蓝牙是否打开
         BleManager.isBluetoothOn();
-        
-        //打开或关闭蓝牙，不显示请求用户授权dialog（一些特殊设备如大部分国产手机除外）
-        BleManager.toggleBluetooth(true); 
-        
-        //显示dialog请求用户打开蓝牙，需在传入的activity的onActivityResult中处理请求结果
+
+        //若蓝牙未打开则首先使用该方法请求用户打开蓝牙，需在传入的activity的onActivityResult
+        //中处理请求结果
         BleManager.enableBluetooth(activity,requestCode);
 ```
 
-### 步骤如下
-
-### 1.获取BleManager对象并初始化
+### 2.获取BleManager对象并初始化
 
 ```java
 
@@ -58,8 +54,8 @@ dependencies {
         
 ```
 
-### 2.扫描
-安卓版本不小于6.0的，扫描必须要有定位权限
+### 3.扫描
+安卓版本不小于6.0的，扫描必须要有定位权限，若版本为Android10及以上，则需精确定位权限(即*Manifest.permission.ACCESS_FINE_LOCATION*)
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
@@ -92,7 +88,7 @@ dependencies {
         bleManager.stopScan();
 ```
 
-### 3.连接
+### 4.连接
 
 ```java
 
@@ -151,7 +147,7 @@ dependencies {
        bleManager.disconnectAll();
 ```
 
-### 4.Notify
+### 5.Notify
 notify和indicate都使用以下方法
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
@@ -184,7 +180,7 @@ notify和indicate都使用以下方法
        bleManager.cancelNotify(bleDevice, notifyUuid);
 ```
 
-### 5.写入特征数据
+### 6.写入特征数据
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
@@ -213,7 +209,7 @@ notify和indicate都使用以下方法
         });
 ```
 
-### 6.Destroy
+### 7.Destroy
 当结束BLE通信时必须调用destroy方法以释放资源
 ```java
        bleManager.destroy();
@@ -221,46 +217,24 @@ notify和indicate都使用以下方法
 ```
 
 ### 其他api
-```java
-       //获取设备支持的服务信息，如果设备尚未连接上则返回值为null
-       bleManager.getDeviceServices(bleDevice);
-
-       Map<ServiceInfo, List<CharacteristicInfo>> serviceInfoMap = bleManager.getDeviceServices(bleDevice);
-       if (serviceInfoMap != null){
-           for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> entry : serviceInfoMap.entrySet()) {
-               ServiceInfo serviceInfo = entry.getKey();
-               Log.e("TAG", "service uuid: " + serviceInfo.uuid);
-               for (CharacteristicInfo characterInfo : entry.getValue()) {
-                   Log.e("TAG", "characteristic uuid: " + characterInfo.uuid);
-                   boolean readable = characterInfo.readable;
-                   boolean writable = characterInfo.writable;
-                   boolean notification = characterInfo.notify;
-                   boolean indicative = characterInfo.indicative;
-               }
-           }
-       }
-
-    
-       //读取已连接的远程设备信号
-       bleManager.readRssi(bleDevice, bleRssiCallback);
-
-
-       //设置MTU
-       bleManager.setMtu(bleDevice, mtu, bleMtuCallback);
-
-
-       //读取特征数据
-       bleManager.read(bleDevice, serviceUuid, readUuid, bleReadCallback);
-
-
-       //获取当前连接的设备
-       bleManager.getConnectedDevices(); 
-
-
-       //判断是否已连接上某台设备
-       bleManager.isConnected(address);
-
-```
+|Method|Description|
+|------|-----------|
+|**read**(BleDevice bleDevice, String serviceUuid, String readUuid, BleReadCallback bleReadCallback)|读取characteristic数据|
+|**readRssi**(BleDevice device, BleRssiCallback callback)|读取设备信号强度|
+|**setMtu**(BleDevice device, int mtu, BleMtuCallback callback)|设置MTU (Maximum Transmission Unit，即最大传输单元)|
+|isAddressValid(String address)|是否为合法的mac地址|
+|isScanning()|是否正在扫描|
+|isConnected(String address)|是否已连接到指定mac的设备|
+|isConnecting(String address)|是否正在与指定设备进行连接|
+|getConnectedDevices()|获取已连接设备列表|
+|getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|获取已连接设备所支持的服务/特征信息，注意若未连接则返回null，该方法得到一个**Map<ServiceInfo, List<CharacteristicInfo>>**<br>ServiceInfo: 服务信息如*uuid*.<br>CharacteristicInfo: 特征信息如*uuid*、*property*(readable,writable,notify,indicative)等.|
+|*supportBle(Context context)*|设备是否支持BLE|
+|*isBluetoothOn()*|蓝牙是否已打开|
+|*enableBluetooth(Activity activity, int requestCode)*|打开蓝牙，该方法会显示一个dialog请求用户打开,因此打开与否需从Activity#onActivityResult()获取结果|
+|*toggleBluetooth(boolean enable)*|打开或关闭蓝牙，有些设备仍会显示请求dialog，但与enableBluetooth()不一样的是该方法调用后不会立刻获取到打开/关闭的结果|
+|getScanOptions()|获取默认或您已设置过的扫描配置信息|
+|getConnectOptions()|获取默认或您已设置过的连接配置信息||
+|getBluetoothGatt(String address)|获取指定设备的BluetoothGatt,注意若尚未与指定设备建立连接，则返回null|
 
 
 

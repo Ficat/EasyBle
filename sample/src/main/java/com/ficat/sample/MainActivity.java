@@ -173,4 +173,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (manager != null) {
+            //you must call BleManager#destroy() to release resources
+            manager.destroy();
+        }
+    }
 }
