@@ -1,5 +1,6 @@
 package com.ficat.easyble;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -7,6 +8,7 @@ import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Build;
@@ -26,6 +28,7 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScan;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easyble.scan.BleScanner;
+import com.ficat.easyble.utils.PermissionChecker;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -115,11 +118,20 @@ public final class BleManager {
     }
 
     public void startScan(ScanOptions options, BleScanCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("BleScanCallback is null");
+        }
+        if (!isScanPermissionGranted(mContext)) {
+            String permission = Build.VERSION.SDK_INT > Build.VERSION_CODES.P ? "location(ACCESS_FINE_LOCATION)" :
+                    "location(ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION)";
+            callback.onStart(false, "You must grant " + permission + " permission before scanning");
+            return;
+        }
         if (options == null) {
             options = ScanOptions.newInstance();
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-            Logger.i("For this device,scanning may need GPS,you'd better turn on GPS to avoid scanning doesn't work");
+            Logger.i("For this device,scanning may need GPS,you'd better turn on GPS to avoid that scanning doesn't work");
         }
         mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
                 options.scanServiceUuids, callback);
@@ -477,6 +489,23 @@ public final class BleManager {
         return BluetoothAdapter.checkBluetoothAddress(address);
     }
 
+    /**
+     * Check if scan-permission has been granted
+     */
+    public static boolean isScanPermissionGranted(Context context) {
+        if (context == null) {
+            throw new IllegalArgumentException("Context is null");
+        }
+        if (Build.VERSION.SDK_INT >= 29 && getTargetVersion(context) >= 29) {
+            return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
+        } else if (Build.VERSION.SDK_INT >= 23) {
+            return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
+                    PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
+        } else {
+            return true;
+        }
+    }
+
     public ScanOptions getScanOptions() {
         return mScanOptions == null ? ScanOptions.newInstance() : mScanOptions;
     }
@@ -494,6 +523,17 @@ public final class BleManager {
     public BluetoothGatt getBluetoothGatt(String address) {
         checkBluetoothAddress(address);
         return mGatt.getBluetoothGatt(address);
+    }
+
+    private static int getTargetVersion(Context context) {
+        int targetSdkVersion = -100;
+        try {
+            PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            targetSdkVersion = info.applicationInfo.targetSdkVersion;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return targetSdkVersion;
     }
 
     private void checkBluetoothAddress(String address) {

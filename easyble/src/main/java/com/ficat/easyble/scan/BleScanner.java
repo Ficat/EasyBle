@@ -25,13 +25,14 @@ import java.util.List;
 import java.util.UUID;
 
 public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.BluetoothStateChangedListener {
+    private static final int SCAN_PERIOD_DEFAULT = 12000;
+
     protected BluetoothAdapter mBluetoothAdapter;
     private BluetoothAdapter.LeScanCallback mLeScanCallback;//sdk<21 uses this scan callback
     private ScanCallback mScanCallback;//SDK>=21 uses this scan callback
     private BleScanCallback mBleScanCallback;//all sdk version uses this scan callback
     private BluetoothLeScanner mBluetoothLeScanner;
     private ScanSettings mScanSettings;
-    private int mScanPeriod = 12000;//scan period, default 10s
     private String mDeviceName;
     private String mDeviceAddress;
     private UUID[] mServiceUuids;
@@ -60,22 +61,17 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         if (callback == null) {
             throw new IllegalArgumentException("BleScanCallback is null");
         }
-        mBleScanCallback = callback;
         if (mScanning) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    if (mBleScanCallback != null) {
-                        mBleScanCallback.onStart(false, "you can't start a new scan until the previous scan is over");
-                    }
+                    callback.onStart(false, "you can't start a new scan until the previous scan is over");
                 }
             });
             return;
         }
 
-        if (scanPeriod > 0) {
-            mScanPeriod = scanPeriod;
-        }
+        mBleScanCallback = callback;
         mDeviceName = scanDeviceName;
         mDeviceAddress = scanDeviceAddress;
         mServiceUuids = scanServiceUuids;
@@ -96,7 +92,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                     }
                 }
             });
-            mHandler.postDelayed(mScanTimeoutRunnable, mScanPeriod);
+            mHandler.postDelayed(mScanTimeoutRunnable, scanPeriod > 0 ? scanPeriod : SCAN_PERIOD_DEFAULT);
         } else {
             mHandler.post(new Runnable() {
                 @Override
@@ -132,6 +128,7 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
             public void run() {
                 if (mBleScanCallback != null) {
                     mBleScanCallback.onFinish();
+                    mBleScanCallback = null;
                 }
             }
         });

@@ -229,7 +229,6 @@ You must call destroy() to release some resources after BLE communication end
 |**read**(BleDevice bleDevice, String serviceUuid, String readUuid, BleReadCallback bleReadCallback)|Read the characteristic data|
 |**readRssi**(BleDevice device, BleRssiCallback callback)|Read the remote device rssi(Received Signal Strength Indication)|
 |**setMtu**(BleDevice device, int mtu, BleMtuCallback callback)|Set MTU (Maximum Transmission Unit)|
-|isAddressValid(String address)|Check if the address is valid|
 |isScanning()|Is Scanning?|
 |isConnected(String address)|Check if the local bluetooth has connected to the remote device|
 |isConnecting(String address)|Check if local device is connecting with the remote device|
@@ -237,6 +236,8 @@ You must call destroy() to release some resources after BLE communication end
 |getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|Get service information which the remote device supports,note that it may return null. you will get a **Map<ServiceInfo, List<CharacteristicInfo>>**<br>ServiceInfo: get service uuid info like *uuid*.<br>CharacteristicInfo: get characteristic info like *uuid* and *property*(readable,writable,notify,indicative).|
 |*supportBle(Context context)*|Check if this device supports ble|
 |*isBluetoothOn()*|Check if local bluetooth is enabled|
+|*isAddressValid(String address)*|Check if the address is valid|
+|*isScanPermissionGranted(Context context)*|Check if the scan-permission is granted|
 |*enableBluetooth(Activity activity, int requestCode)*|Turn on local bluetooth, calling the method will show users a request dialog to grant or reject,so you can get the result from Activity#onActivityResult()|
 |*toggleBluetooth(boolean enable)*|Turn on or off local bluetooth directly without showing users a request dialog|
 |getScanOptions()|Get the scan option you set or default|

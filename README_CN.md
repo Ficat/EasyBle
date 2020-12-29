@@ -222,7 +222,6 @@ notify和indicate都使用以下方法
 |**read**(BleDevice bleDevice, String serviceUuid, String readUuid, BleReadCallback bleReadCallback)|读取characteristic数据|
 |**readRssi**(BleDevice device, BleRssiCallback callback)|读取设备信号强度|
 |**setMtu**(BleDevice device, int mtu, BleMtuCallback callback)|设置MTU (Maximum Transmission Unit，即最大传输单元)|
-|isAddressValid(String address)|是否为合法的mac地址|
 |isScanning()|是否正在扫描|
 |isConnected(String address)|是否已连接到指定mac的设备|
 |isConnecting(String address)|是否正在与指定设备进行连接|
@@ -230,6 +229,8 @@ notify和indicate都使用以下方法
 |getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|获取已连接设备所支持的服务/特征信息，注意若未连接则返回null，该方法得到一个**Map<ServiceInfo, List<CharacteristicInfo>>**<br>ServiceInfo: 服务信息如*uuid*.<br>CharacteristicInfo: 特征信息如*uuid*、*property*(readable,writable,notify,indicative)等.|
 |*supportBle(Context context)*|设备是否支持BLE|
 |*isBluetoothOn()*|蓝牙是否已打开|
+|*isAddressValid(String address)*|是否为合法的mac地址|
+|*isScanPermissionGranted(Context context)*|是否已授予扫描权限|
 |*enableBluetooth(Activity activity, int requestCode)*|打开蓝牙，该方法会显示一个dialog请求用户打开,因此打开与否需从Activity#onActivityResult()获取结果|
 |*toggleBluetooth(boolean enable)*|打开或关闭蓝牙，有些设备仍会显示请求dialog，但与enableBluetooth()不一样的是该方法调用后不会立刻获取到打开/关闭的结果|
 |getScanOptions()|获取默认或您已设置过的扫描配置信息|
