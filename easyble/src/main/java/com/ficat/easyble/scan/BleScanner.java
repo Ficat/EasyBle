@@ -133,7 +133,6 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
             }
         });
         mHandler.removeCallbacks(mScanTimeoutRunnable);
-        mBleScanCallback = null;
     }
 
     @Override
