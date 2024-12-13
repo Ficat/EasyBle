@@ -27,10 +27,14 @@
     <string name="write_result">写入操作结果</string>
     <string name="tips_current_operate_uuid">此处显示当前操作的UUID信息</string>
     <string name="tips_write_operate_input">请输入十六进制字符串命令</string>
-    <string name="tips_turn_on_gps">扫描前请打开GPS</string>
+    <string name="tips_turn_on_gps">若设备提供GPS等定位服务请打开</string>
     <string name="tips_go_setting_to_grant_location">请前往设置界面手动授予定位权限</string>
     <string name="tips_connect_timeout">连接超时</string>
     <string name="tips_connect_fail">连接失败</string>
     <string name="tips_connection_disconnected">连接已断开</string>
     <string name="tips_write_operation">请输入十六进制字符串命令</string>
+    <string name="tips_not_support_ble">该设备不支持BLE</string>
+    <string name="tips_user_reject_permissions">用户已拒绝蓝牙权限</string>
+    <string name="tips_bluetooth_on">蓝牙已打开</string>
+    <string name="tips_bluetooth_off">蓝牙已关闭</string>
 </resources>

@@ -6,11 +6,11 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.location.LocationManager;
 import android.os.Build;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
 import android.widget.Button;
@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
+import com.ficat.easyble.Logger;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easypermissions.EasyPermissions;
 import com.ficat.easypermissions.RequestExecutor;
@@ -29,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-    private final static String TAG = "EasyBle";
+    private final static int REQUEST_CODE_ENABLE_BLUETOOTH = 23;
 
     private RecyclerView rv;
     private BleManager manager;
@@ -43,6 +44,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         initView();
         initBleManager();
         showDevicesByRv();
+        requestPermissionAndEnableBluetooth();
     }
 
     private void initView() {
@@ -55,10 +57,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void initBleManager() {
         //check if this android device supports ble
         if (!BleManager.supportBle(this)) {
+            Toast.makeText(this, getString(R.string.tips_not_support_ble), Toast.LENGTH_SHORT).show();
+            finish();
             return;
         }
-        //open bluetooth without a request dialog
-        BleManager.toggleBluetooth(true);
 
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
@@ -102,40 +104,57 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         rv.setAdapter(adapter);
     }
 
+    private void requestPermissionAndEnableBluetooth() {
+        List<String> list = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            list.add(Manifest.permission.BLUETOOTH_SCAN);
+            list.add(Manifest.permission.BLUETOOTH_CONNECT);
+        } else {
+            list.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        EasyPermissions
+                .with(this)
+                .request(list.toArray(new String[0]))
+                .autoRetryWhenUserRefuse(true, null)
+                .result((grantAll, results) -> {
+                    if (grantAll) {
+                        //enable bluetooth
+                        BleManager.enableBluetooth(this, REQUEST_CODE_ENABLE_BLUETOOTH);
+                    } else {
+                        Toast.makeText(MainActivity.this, getString(R.string.tips_user_reject_permissions),
+                                Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+    }
+
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_scan:
                 if (!BleManager.isBluetoothOn()) {
-                    BleManager.toggleBluetooth(true);
-                }
-                //for most devices whose version is over Android6,scanning may need GPS permission
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
+                    BleManager.enableBluetooth(this, REQUEST_CODE_ENABLE_BLUETOOTH);
                     return;
                 }
-                EasyPermissions
-                        .with(this)
-                        .request(Manifest.permission.ACCESS_FINE_LOCATION)
-                        .autoRetryWhenUserRefuse(true, null)
-                        .result(new RequestExecutor.ResultReceiver() {
-                            @Override
-                            public void onPermissionsRequestResult(boolean grantAll, List<Permission> results) {
-                                if (grantAll) {
-                                    if (!manager.isScanning()) {
-                                        startScan();
-                                    }
-                                } else {
-                                    Toast.makeText(MainActivity.this,
-                                            getResources().getString(R.string.tips_go_setting_to_grant_location),
-                                            Toast.LENGTH_LONG).show();
-                                    EasyPermissions.goToSettingsActivity(MainActivity.this);
-                                }
-                            }
-                        });
+                //Android7 or higher, scanning may need GPS permission
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
+                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
+                }
+                if (!manager.isScanning()) {
+                    startScan();
+                }
                 break;
             default:
                 break;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_ENABLE_BLUETOOTH) {
+            Toast.makeText(this, getString(resultCode == RESULT_OK ?
+                    R.string.tips_bluetooth_on : R.string.tips_bluetooth_off), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -154,7 +173,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onStart(boolean startScanSuccess, String info) {
-                Log.e(TAG, "start scan = " + startScanSuccess + "   info: " + info);
+                Logger.e("start scan = " + startScanSuccess + "   info: " + info);
                 if (startScanSuccess) {
                     deviceList.clear();
                     adapter.notifyDataSetChanged();
@@ -163,7 +182,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onFinish() {
-                Log.e(TAG, "scan finish");
+                Logger.e("scan finish");
             }
         });
     }

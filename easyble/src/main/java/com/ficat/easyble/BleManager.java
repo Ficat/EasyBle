@@ -121,10 +121,20 @@ public final class BleManager {
         if (callback == null) {
             throw new IllegalArgumentException("BleScanCallback is null");
         }
+        if (!isBluetoothOn()) {
+            callback.onStart(false, "Bluetooth is not turned on");
+            return;
+        }
         if (!isScanPermissionGranted(mContext)) {
-            String permission = Build.VERSION.SDK_INT > Build.VERSION_CODES.P ? "location(ACCESS_FINE_LOCATION)" :
-                    "location(ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION)";
-            callback.onStart(false, "You must grant " + permission + " permission before scanning");
+            String permission;
+            if (Build.VERSION.SDK_INT >= 31) { //Android12
+                permission = "BLUETOOTH_SCAN and BLUETOOTH_CONNECT";
+            } else if (Build.VERSION.SDK_INT >= 29) {//Android10
+                permission = "ACCESS_FINE_LOCATION";
+            } else {//Android6
+                permission = "ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION";
+            }
+            callback.onStart(false, "No scan permission(" + permission + ")");
             return;
         }
         if (options == null) {
@@ -153,6 +163,20 @@ public final class BleManager {
     }
 
     public void connect(BleDevice device, ConnectOptions options, BleConnectCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("BleConnectCallback is null");
+        }
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (!isBluetoothOn()) {
+            callback.onStart(false, "Bluetooth is not turned on", device);
+            return;
+        }
+        if (!isConnectionPermissionGranted(mContext)) {
+            callback.onStart(false, "No connection permission(BLUETOOTH_CONNECT)", device);
+            return;
+        }
         if (options == null) {
             options = ConnectOptions.newInstance();
         }
@@ -170,10 +194,6 @@ public final class BleManager {
         checkBluetoothAddress(address);
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         BleDevice bleDevice = newBleDevice(device);
-        if (bleDevice == null) {
-            Logger.d("new BleDevice fail!");
-            return;
-        }
         connect(bleDevice, options, callback);
     }
 
@@ -195,10 +215,7 @@ public final class BleManager {
      * @param address remote device address
      */
     public void disconnect(String address) {
-        if (!isAddressValid(address)) {
-            Logger.d("disconnect fail because of invalid address:" + address);
-            return;
-        }
+        checkBluetoothAddress(address);
         mGatt.disconnect(address);
     }
 
@@ -361,9 +378,7 @@ public final class BleManager {
      * @return true if local device has connected to the specific remote device
      */
     public boolean isConnected(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            return false;
-        }
+        checkBluetoothAddress(address);
         List<BleDevice> deviceList = getConnectedDevices();
         for (BleDevice d : deviceList) {
             if (address.equals(d.address)) {
@@ -377,9 +392,7 @@ public final class BleManager {
      * Return true if local device is connecting with the specific remote device
      */
     public boolean isConnecting(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
-            return false;
-        }
+        checkBluetoothAddress(address);
         return mGatt.isConnecting(address);
     }
 
@@ -429,7 +442,11 @@ public final class BleManager {
 
     /**
      * Turn on local bluetooth, calling the method will show users a request dialog
-     * to grant or reject,so you can get the result from Activity#onActivityResult()
+     * to grant or reject,so you can get the result from Activity#onActivityResult().
+     * <p>
+     * Note that if Android12(api31) or higher, only the permission
+     * {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
+     * calling this method can work.
      *
      * @param activity    activity, note that to get the result whether users have granted
      *                    or rejected to enable bluetooth, you should handle the method
@@ -437,7 +454,16 @@ public final class BleManager {
      * @param requestCode enable bluetooth request code
      */
     public static void enableBluetooth(Activity activity, int requestCode) {
-        if (activity == null || requestCode < 0) {
+        if (activity == null) {
+            throw new IllegalArgumentException("Activity is null");
+        }
+        if (requestCode < 0) {
+            throw new IllegalArgumentException("Request code cannot be negative");
+        }
+        if (Build.VERSION.SDK_INT >= 31 && !PermissionChecker.isPermissionGranted(activity,
+                Manifest.permission.BLUETOOTH_CONNECT)) {
+            Logger.e("Android12 or higher, BleManager#enableBluetooth(Activity,int) needs the " +
+                    "permission 'android.permission.BLUETOOTH_CONNECT'");
             return;
         }
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -449,7 +475,11 @@ public final class BleManager {
 
     /**
      * Turn on or off local bluetooth directly without showing users a request
-     * dialog.
+     * dialog. Like {@link #enableBluetooth(Activity, int)}, if current version
+     * is Android12(api31) or higher, before calling this method, make sure the
+     * permission {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been
+     * granted by user.
+     * <p>
      * Note that a request dialog may still show when you call this method, due to
      * some special Android devices' system may have been modified by manufacturers
      *
@@ -460,12 +490,18 @@ public final class BleManager {
         if (adapter == null) {
             return;
         }
-        if (enable) {
-            adapter.enable();
-        } else {
-            if (adapter.isEnabled()) {
-                adapter.disable();
+        try {
+            if (enable) {
+                adapter.enable();
+            } else {
+                if (adapter.isEnabled()) {
+                    adapter.disable();
+                }
             }
+        } catch (SecurityException e) {
+            Logger.e("Android12 or higher, BleManager#toggleBluetooth(boolean) needs the" +
+                    " permission 'android.permission.BLUETOOTH_CONNECT'");
+            e.printStackTrace();
         }
     }
 
@@ -496,14 +532,30 @@ public final class BleManager {
         if (context == null) {
             throw new IllegalArgumentException("Context is null");
         }
-        if (Build.VERSION.SDK_INT >= 29 && getTargetVersion(context) >= 29) {
+        if (Build.VERSION.SDK_INT >= 31) { //Android12
+            //BLUETOOTH_SCAN: enable this central device to scan peripheral devices
+            //BLUETOOTH_CONNECT: used to get peripheral device name (BluetoothDevice#getName())
+            return PermissionChecker.isPermissionGranted(context, Manifest.permission.BLUETOOTH_SCAN) &&
+                    PermissionChecker.isPermissionGranted(context, Manifest.permission.BLUETOOTH_CONNECT);
+        } else if (Build.VERSION.SDK_INT >= 29) {//Android10
             return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
-        } else if (Build.VERSION.SDK_INT >= 23) {
+        } else if (Build.VERSION.SDK_INT >= 23) {//Android6
             return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
                     PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
         } else {
             return true;
         }
+    }
+
+    /**
+     * Check if connection-permission has been granted
+     */
+    public static boolean isConnectionPermissionGranted(Context context) {
+        if (context == null) {
+            throw new IllegalArgumentException("Context is null");
+        }
+        //Android12(api31) or higher, BLUETOOTH_CONNECT permission is necessary
+        return Build.VERSION.SDK_INT < 31 || PermissionChecker.isPermissionGranted(context, Manifest.permission.BLUETOOTH_CONNECT);
     }
 
     public ScanOptions getScanOptions() {

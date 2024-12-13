@@ -20,9 +20,17 @@ public class BleDevice implements Parcelable {
     BleDevice(BluetoothDevice device) {
         this.device = device;
         this.address = device.getAddress();
-        this.name = device.getName();
-        if (TextUtils.isEmpty(name)) {
-            name = "unknown";
+
+        //Android12(api31) or higher,Bluetooth#getName() needs 'BLUETOOTH_CONNECT' permission
+        try {
+            this.name = device.getName();
+        } catch (Exception e) {
+            Logger.e("Failed to call BluetoothDevice#getName() because of no 'BLUETOOTH_CONNECT' permission");
+        } finally {
+            //Device name got from BluetoothDevice#getName() may be null, so check it
+            if (TextUtils.isEmpty(this.name)){
+                this.name = "unknown";
+            }
         }
     }
 
