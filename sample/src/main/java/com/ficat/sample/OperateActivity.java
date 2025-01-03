@@ -16,13 +16,14 @@ import android.widget.Toast;
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
 import com.ficat.easyble.Logger;
-import com.ficat.easyble.gatt.bean.CharacteristicInfo;
-import com.ficat.easyble.gatt.bean.ServiceInfo;
+import com.ficat.easyble.gatt.callback.BleCallback;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteCallback;
+import com.ficat.easyble.gatt.data.CharacteristicInfo;
+import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.sample.adapter.DeviceServiceInfoAdapter;
 import com.ficat.sample.utils.ByteUtils;
 
@@ -63,7 +64,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
     private void addDeviceInfoDataAndUpdate() {
         if (device == null) return;
-        Map<ServiceInfo, List<CharacteristicInfo>> deviceInfo = BleManager.getInstance().getDeviceServices(device.address);
+        Map<ServiceInfo, List<CharacteristicInfo>> deviceInfo = BleManager.getInstance().getDeviceServices(device.getAddress());
         if (deviceInfo == null) {
             return;
         }
@@ -108,9 +109,9 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         tvWrite.setOnClickListener(this);
         tvNotify.setOnClickListener(this);
 
-        tvDeviceName.setText(getResources().getString(R.string.device_name_prefix) + device.name);
-        tvAddress.setText(getResources().getString(R.string.device_address_prefix) + device.address);
-        updateConnectionStateUi(BleManager.getInstance().isConnected(device.address));
+        tvDeviceName.setText(getResources().getString(R.string.device_name_prefix) + device.getName());
+        tvAddress.setText(getResources().getString(R.string.device_address_prefix) + device.getAddress());
+        updateConnectionStateUi(BleManager.getInstance().isConnected(device.getAddress()));
     }
 
     private void initElv() {
@@ -136,27 +137,27 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
     private void updateOperationUi(ServiceInfo service, CharacteristicInfo charInfo) {
         String extra = getResources().getString(R.string.current_operate_uuid) + "\n" + "service:\n      " +
-                service.uuid + "\n" + "characteristic:\n      " + charInfo.uuid;
+                service.getUuid().toString() + "\n" + "characteristic:\n      " + charInfo.getUuid().toString();
         tvInfoCurrentUuid.setText(extra);
         tvWriteResult.setText(R.string.write_result);
         tvReadResult.setText(R.string.read_result);
-        llRead.setVisibility(charInfo.readable ? View.VISIBLE : View.GONE);
-        llWrite.setVisibility(charInfo.writable ? View.VISIBLE : View.GONE);
-        tvNotify.setVisibility((charInfo.notify || charInfo.indicative) ? View.VISIBLE : View.GONE);
+        llRead.setVisibility(charInfo.isReadable() ? View.VISIBLE : View.GONE);
+        llWrite.setVisibility(charInfo.isWritable() ? View.VISIBLE : View.GONE);
+        tvNotify.setVisibility((charInfo.isNotifiable() || charInfo.isIndicative()) ? View.VISIBLE : View.GONE);
     }
 
     private void updateConnectionStateUi(boolean connected) {
         String state;
-        if (device.connected) {
+        if (device.isConnected()) {
             state = getResources().getString(R.string.connection_state_connected);
-        } else if (device.connecting) {
+        } else if (device.isConnecting()) {
             state = getResources().getString(R.string.connection_state_connecting);
         } else {
             state = getResources().getString(R.string.connection_state_disconnected);
         }
-        pb.setVisibility(device.connecting ? View.VISIBLE : View.INVISIBLE);
+        pb.setVisibility(device.isConnecting() ? View.VISIBLE : View.INVISIBLE);
         tvConnectionState.setText(state);
-        tvConnectionState.setTextColor(getResources().getColor(device.connected ? R.color.bright_blue : R.color.bright_red));
+        tvConnectionState.setTextColor(getResources().getColor(device.isConnected() ? R.color.bright_blue : R.color.bright_red));
     }
 
     private void updateNotificationInfo(String notification) {
@@ -190,22 +191,23 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     public void onClick(View v) {
         if (v.getId() == R.id.tv_connect) {
-            BleManager.getInstance().connect(device.address, connectCallback);
+            BleManager.getInstance().connect(device.getAddress(), connectCallback);
             return;
         }
-        if (!BleManager.getInstance().isConnected(device.address)) {
+        if (!BleManager.getInstance().isConnected(device.getAddress())) {
             Toast.makeText(this, getResources().getString(R.string.tips_connection_disconnected), Toast.LENGTH_SHORT).show();
             return;
         }
         switch (v.getId()) {
             case R.id.tv_disconnect:
-                BleManager.getInstance().disconnect(device.address);
+                BleManager.getInstance().disconnect(device.getAddress());
                 break;
             case R.id.tv_read_rssi:
                 BleManager.getInstance().readRssi(device, rssiCallback);
                 break;
             case R.id.tv_read:
-                BleManager.getInstance().read(device, curService.uuid, curCharacteristic.uuid, readCallback);
+                BleManager.getInstance().read(device, curService.getUuid().toString(),
+                        curCharacteristic.getUuid().toString(), readCallback);
                 break;
             case R.id.tv_write:
                 String str = etWrite.getText().toString();
@@ -213,10 +215,12 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                     Toast.makeText(this, getResources().getString(R.string.tips_write_operation), Toast.LENGTH_SHORT).show();
                     return;
                 }
-                BleManager.getInstance().write(device, curService.uuid, curCharacteristic.uuid, ByteUtils.hexStr2Bytes(str), writeCallback);
+                BleManager.getInstance().write(device, curService.getUuid().toString(),
+                        curCharacteristic.getUuid().toString(), ByteUtils.hexStr2Bytes(str), writeCallback);
                 break;
             case R.id.tv_notify_or_indicate:
-                BleManager.getInstance().notify(device, curService.uuid, curCharacteristic.uuid, notifyCallback);
+                BleManager.getInstance().notify(device, curService.getUuid().toString(),
+                        curCharacteristic.getUuid().toString(), notifyCallback);
                 break;
             default:
                 break;
@@ -226,8 +230,8 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     protected void onStop() {
         super.onStop();
-        if (isFinishing() && device != null && !TextUtils.isEmpty(device.address)) {
-            BleManager.getInstance().disconnect(device.address);
+        if (isFinishing() && device != null && !TextUtils.isEmpty(device.getAddress())) {
+            BleManager.getInstance().disconnect(device.getAddress());
         }
     }
 
@@ -259,7 +263,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         public void onFailure(int failCode, String info, BleDevice device) {
             Logger.e("connect fail:" + info);
             Toast.makeText(OperateActivity.this,
-                    getResources().getString(failCode == BleConnectCallback.FAIL_CONNECT_TIMEOUT ?
+                    getResources().getString(failCode == BleCallback.FAIL_CONNECTION_TIMEOUT ?
                             R.string.tips_connect_timeout : R.string.tips_connect_fail), Toast.LENGTH_LONG).show();
             reset();
             updateConnectionStateUi(false);

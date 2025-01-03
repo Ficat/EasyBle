@@ -11,39 +11,79 @@ import android.text.TextUtils;
  */
 
 public class BleDevice implements Parcelable {
-    public volatile boolean connected;
-    public volatile boolean connecting;
-    public String address;
-    public String name;
-    private BluetoothDevice device;
+    private static final String DEFAULT_NAME = "unknown";
+
+    /**
+     * Connection state constants
+     */
+    public static final int DISCONNECTED = 1;
+    public static final int CONNECTING = 2;
+    public static final int CONNECTED = 3;
+
+    /**
+     * Current connection state
+     */
+    private volatile int connState = DISCONNECTED;
+
+    private String name;
+    private final BluetoothDevice device;
 
     BleDevice(BluetoothDevice device) {
         this.device = device;
-        this.address = device.getAddress();
+        tryToGetName();
+    }
 
-        //Android12(api31) or higher,Bluetooth#getName() needs 'BLUETOOTH_CONNECT' permission
-        try {
-            this.name = device.getName();
-        } catch (Exception e) {
-            Logger.e("Failed to call BluetoothDevice#getName() because of no 'BLUETOOTH_CONNECT' permission");
-        } finally {
-            //Device name got from BluetoothDevice#getName() may be null, so check it
-            if (TextUtils.isEmpty(this.name)){
-                this.name = "unknown";
-            }
+    public String getAddress() {
+        return device.getAddress();
+    }
+
+    public String getName() {
+        if (TextUtils.isEmpty(name) || name.equals(DEFAULT_NAME)) {
+            tryToGetName();
         }
+        return name;
+    }
+
+    public boolean isConnected() {
+        return connState == CONNECTED;
+    }
+
+    public boolean isConnecting() {
+        return connState == CONNECTING;
+    }
+
+    public void setConnectionState(int newState) {
+        synchronized (this) {
+            this.connState = newState;
+        }
+    }
+
+    public int getConnectionState() {
+        return this.connState;
     }
 
     public BluetoothDevice getDevice() {
         return device;
     }
 
+    private void tryToGetName() {
+        //Android12(api31) or higher,Bluetooth#getName() needs 'BLUETOOTH_CONNECT' permission
+        try {
+            this.name = device.getName();
+        } catch (Exception e) {
+            Logger.d("Failed to call BluetoothDevice#getName() because of no 'BLUETOOTH_CONNECT' permission");
+        } finally {
+            //Device name got from BluetoothDevice#getName() may be null, so check it
+            if (TextUtils.isEmpty(this.name)) {
+                this.name = DEFAULT_NAME;
+            }
+        }
+    }
+
     @Override
     public String toString() {
         return "BleDevice{" +
-                "connected=" + connected +
-                ", connecting=" + connecting +
-                ", address='" + address + '\'' +
+                "connState=" + connState +
                 ", name='" + name + '\'' +
                 ", device=" + device +
                 '}';
@@ -56,17 +96,13 @@ public class BleDevice implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeByte(this.connected ? (byte) 1 : (byte) 0);
-        dest.writeByte(this.connecting ? (byte) 1 : (byte) 0);
-        dest.writeString(this.address);
+        dest.writeInt(this.connState);
         dest.writeString(this.name);
         dest.writeParcelable(this.device, flags);
     }
 
     protected BleDevice(Parcel in) {
-        this.connected = in.readByte() != 0;
-        this.connecting = in.readByte() != 0;
-        this.address = in.readString();
+        this.connState = in.readInt();
         this.name = in.readString();
         this.device = in.readParcelable(BluetoothDevice.class.getClassLoader());
     }

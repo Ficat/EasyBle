@@ -45,8 +45,7 @@ public class BleReceiver extends BroadcastReceiver {
 
     private void checkNotNull(Object object, Class<?> clasz) {
         if (object == null) {
-            String claszSimpleName = clasz.getSimpleName();
-            throw new IllegalArgumentException(claszSimpleName + " is null");
+            throw new IllegalArgumentException(clasz.getName() + " is null");
         }
     }
 

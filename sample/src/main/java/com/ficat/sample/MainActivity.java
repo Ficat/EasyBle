@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
                 for (BleDevice d : deviceList) {
-                    if (device.address.equals(d.address)) {
+                    if (device.getAddress().equals(d.getAddress())) {
                         return;
                     }
                 }

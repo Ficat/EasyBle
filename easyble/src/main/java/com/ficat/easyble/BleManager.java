@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Build;
@@ -16,8 +15,8 @@ import android.text.TextUtils;
 
 import com.ficat.easyble.gatt.BleGatt;
 import com.ficat.easyble.gatt.BleGattImpl;
-import com.ficat.easyble.gatt.bean.CharacteristicInfo;
-import com.ficat.easyble.gatt.bean.ServiceInfo;
+import com.ficat.easyble.gatt.data.CharacteristicInfo;
+import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
@@ -30,7 +29,7 @@ import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easyble.scan.BleScanner;
 import com.ficat.easyble.utils.PermissionChecker;
 
-import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,14 +52,12 @@ public final class BleManager {
 
     public BleManager init(Context context) {
         if (mContext != null) {
-            Logger.d("you have called init() already");
+            Logger.d("You have called init() already!");
             return this;
         }
-        if (context == null) {
-            throw new IllegalArgumentException("context is null");
-        }
+        checkNotNull(context, Context.class);
         if (context instanceof Activity) {
-            Logger.w("Activity Leak Risk:" + context.getClass().getSimpleName());
+            Logger.w("Activity Leak Risk: " + context.getClass().getName());
         }
         mContext = context;
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -118,9 +115,7 @@ public final class BleManager {
     }
 
     public void startScan(ScanOptions options, BleScanCallback callback) {
-        if (callback == null) {
-            throw new IllegalArgumentException("BleScanCallback is null");
-        }
+        checkNotNull(callback, BleScanCallback.class);
         if (!isBluetoothOn()) {
             callback.onStart(false, "Bluetooth is not turned on");
             return;
@@ -163,12 +158,8 @@ public final class BleManager {
     }
 
     public void connect(BleDevice device, ConnectOptions options, BleConnectCallback callback) {
-        if (callback == null) {
-            throw new IllegalArgumentException("BleConnectCallback is null");
-        }
-        if (device == null) {
-            throw new IllegalArgumentException("BleDevice is null");
-        }
+        checkNotNull(callback, BleConnectCallback.class);
+        checkNotNull(device, BleDevice.class);
         if (!isBluetoothOn()) {
             callback.onStart(false, "Bluetooth is not turned on", device);
             return;
@@ -193,7 +184,7 @@ public final class BleManager {
     public void connect(String address, ConnectOptions options, BleConnectCallback callback) {
         checkBluetoothAddress(address);
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-        BleDevice bleDevice = newBleDevice(device);
+        BleDevice bleDevice = new BleDevice(device);
         connect(bleDevice, options, callback);
     }
 
@@ -203,10 +194,8 @@ public final class BleManager {
      * @param device remote device
      */
     public void disconnect(BleDevice device) {
-        if (device == null) {
-            throw new IllegalArgumentException("BleDevice is null");
-        }
-        disconnect(device.address);
+        checkNotNull(device, BleDevice.class);
+        disconnect(device.getAddress());
     }
 
     /**
@@ -346,7 +335,7 @@ public final class BleManager {
         if (device == null) {
             return null;
         }
-        return getDeviceServices(device.address);
+        return getDeviceServices(device.getAddress());
     }
 
     /**
@@ -356,9 +345,7 @@ public final class BleManager {
      * @return service information
      */
     public Map<ServiceInfo, List<CharacteristicInfo>> getDeviceServices(String address) {
-        if (!isAddressValid(address)) {
-            return null;
-        }
+        checkBluetoothAddress(address);
         return mGatt.getDeviceServices(address);
     }
 
@@ -379,13 +366,7 @@ public final class BleManager {
      */
     public boolean isConnected(String address) {
         checkBluetoothAddress(address);
-        List<BleDevice> deviceList = getConnectedDevices();
-        for (BleDevice d : deviceList) {
-            if (address.equals(d.address)) {
-                return true;
-            }
-        }
-        return false;
+        return mGatt.isConnected(address);
     }
 
     /**
@@ -433,9 +414,7 @@ public final class BleManager {
      * Return true if this device supports ble
      */
     public static boolean supportBle(Context context) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context is null");
-        }
+        checkNotNull(context, Context.class);
         return BluetoothAdapter.getDefaultAdapter() != null &&
                 context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
     }
@@ -446,31 +425,32 @@ public final class BleManager {
      * <p>
      * Note that if Android12(api31) or higher, only the permission
      * {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
-     * calling this method can work.
+     * calling this method can work, or it will return false directly.
      *
      * @param activity    activity, note that to get the result whether users have granted
      *                    or rejected to enable bluetooth, you should handle the method
      *                    onActivityResult() of this activity
      * @param requestCode enable bluetooth request code
+     * @return true if the request to turn on bluetooth has started successfully, otherwise false
      */
-    public static void enableBluetooth(Activity activity, int requestCode) {
-        if (activity == null) {
-            throw new IllegalArgumentException("Activity is null");
-        }
+    public static boolean enableBluetooth(Activity activity, int requestCode) {
+        checkNotNull(activity, Activity.class);
         if (requestCode < 0) {
             throw new IllegalArgumentException("Request code cannot be negative");
         }
         if (Build.VERSION.SDK_INT >= 31 && !PermissionChecker.isPermissionGranted(activity,
                 Manifest.permission.BLUETOOTH_CONNECT)) {
-            Logger.e("Android12 or higher, BleManager#enableBluetooth(Activity,int) needs the " +
+            Logger.i("Android12 or higher, BleManager#enableBluetooth(Activity,int) needs the " +
                     "permission 'android.permission.BLUETOOTH_CONNECT'");
-            return;
+            return false;
         }
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter != null && !adapter.isEnabled()) {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             activity.startActivityForResult(intent, requestCode);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -491,17 +471,17 @@ public final class BleManager {
             return;
         }
         try {
-            if (enable) {
-                adapter.enable();
-            } else {
-                if (adapter.isEnabled()) {
-                    adapter.disable();
-                }
+            if (enable == adapter.isEnabled()) {
+                return;
             }
+            // Now, especially high version android device, the result of enable()
+            // or disable() is unreliable. On some devices even if bluetooth state
+            // has changed or the request dialog used to turn on/off bluetooth has
+            // showed, it still return false.
+            boolean result = enable ? adapter.enable() : adapter.disable();
         } catch (SecurityException e) {
             Logger.e("Android12 or higher, BleManager#toggleBluetooth(boolean) needs the" +
                     " permission 'android.permission.BLUETOOTH_CONNECT'");
-            e.printStackTrace();
         }
     }
 
@@ -526,12 +506,31 @@ public final class BleManager {
     }
 
     /**
+     * Get all permissions BLE required
+     *
+     * @return all BLE permissions
+     */
+    public static List<String> getBleRequiredPermissions() {
+        List<String> list = new ArrayList<>();
+        //BLE required permissions
+        if (Build.VERSION.SDK_INT >= 31) { //Android12
+            //BLUETOOTH_SCAN: enable this central device to scan peripheral devices
+            //BLUETOOTH_CONNECT: used to get peripheral device name (BluetoothDevice#getName())
+            list.add(Manifest.permission.BLUETOOTH_SCAN);
+            list.add(Manifest.permission.BLUETOOTH_CONNECT);
+        } else if (Build.VERSION.SDK_INT >= 29) {//Android10
+            list.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        } else if (Build.VERSION.SDK_INT >= 23) {//Android6
+            list.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+        return list;
+    }
+
+    /**
      * Check if scan-permission has been granted
      */
     public static boolean isScanPermissionGranted(Context context) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context is null");
-        }
+        checkNotNull(context, Context.class);
         if (Build.VERSION.SDK_INT >= 31) { //Android12
             //BLUETOOTH_SCAN: enable this central device to scan peripheral devices
             //BLUETOOTH_CONNECT: used to get peripheral device name (BluetoothDevice#getName())
@@ -551,9 +550,7 @@ public final class BleManager {
      * Check if connection-permission has been granted
      */
     public static boolean isConnectionPermissionGranted(Context context) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context is null");
-        }
+        checkNotNull(context, Context.class);
         //Android12(api31) or higher, BLUETOOTH_CONNECT permission is necessary
         return Build.VERSION.SDK_INT < 31 || PermissionChecker.isPermissionGranted(context, Manifest.permission.BLUETOOTH_CONNECT);
     }
@@ -577,19 +574,8 @@ public final class BleManager {
         return mGatt.getBluetoothGatt(address);
     }
 
-    private static int getTargetVersion(Context context) {
-        int targetSdkVersion = -100;
-        try {
-            PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            targetSdkVersion = info.applicationInfo.targetSdkVersion;
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
-        return targetSdkVersion;
-    }
-
     private void checkBluetoothAddress(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+        if (!isAddressValid(address)) {
             throw new IllegalArgumentException("Invalid address: " + address);
         }
     }
@@ -603,16 +589,9 @@ public final class BleManager {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
-    private BleDevice newBleDevice(BluetoothDevice device) {
-        Class<?> clasz = BleDevice.class;
-        try {
-            Constructor<?> constructor = clasz.getDeclaredConstructor(BluetoothDevice.class);
-            constructor.setAccessible(true);
-            BleDevice d = (BleDevice) constructor.newInstance(device);
-            return d;
-        } catch (Exception e) {
-            Logger.i("Encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
-            return null;
+    private static void checkNotNull(Object object, Class<?> clasz) {
+        if (object == null) {
+            throw new IllegalArgumentException(clasz.getSimpleName() + " is null");
         }
     }
 

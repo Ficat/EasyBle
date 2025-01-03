@@ -4,8 +4,8 @@ package com.ficat.easyble.gatt;
 import android.bluetooth.BluetoothGatt;
 
 import com.ficat.easyble.BleDevice;
-import com.ficat.easyble.gatt.bean.CharacteristicInfo;
-import com.ficat.easyble.gatt.bean.ServiceInfo;
+import com.ficat.easyble.gatt.data.CharacteristicInfo;
+import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
@@ -45,6 +45,8 @@ public interface BleGatt {
     BluetoothGatt getBluetoothGatt(String address);
 
     boolean isConnecting(String address);
+
+    boolean isConnected(String address);
 
     void destroy();
 }
