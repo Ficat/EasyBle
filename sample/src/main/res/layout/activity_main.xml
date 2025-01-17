@@ -9,19 +9,39 @@
     tools:context="com.ficat.sample.MainActivity">
 
     <Button
-        android:id="@+id/btn_scan"
+        android:id="@+id/btn_request_permission"
         style="@style/ButtonStyle"
         android:layout_marginLeft="12dp"
         android:layout_marginTop="24dp"
         android:layout_marginRight="12dp"
         android:background="@drawable/selector_btn_common"
         android:gravity="center"
+        android:text="@string/request_permissions" />
+
+    <Button
+        android:id="@+id/btn_enable_bluetooth"
+        style="@style/ButtonStyle"
+        android:layout_marginLeft="12dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginRight="12dp"
+        android:background="@drawable/selector_btn_common"
+        android:gravity="center"
+        android:text="@string/enable_bluetooth" />
+
+    <Button
+        android:id="@+id/btn_scan"
+        style="@style/ButtonStyle"
+        android:layout_marginLeft="12dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginRight="12dp"
+        android:background="@drawable/selector_btn_common"
+        android:gravity="center"
         android:text="@string/start_scan" />
 
     <android.support.v7.widget.RecyclerView
-        android:layout_marginTop="15dp"
         android:id="@+id/rv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="15dp"
         android:background="#f3f9f9" />
 </LinearLayout>

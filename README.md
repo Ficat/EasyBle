@@ -44,14 +44,14 @@ dependencies {
                 .scanPeriod(10000)
                 .scanDeviceName(null);
 
-        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+        BleManager.ConnectOptions connectionOptions = BleManager.ConnectOptions
                 .newInstance()
                 .connectTimeout(12000);
 
         BleManager bleManager = BleManager
                         .getInstance()
                         .setScanOptions(scanOptions)//it is not necessary
-                        .setConnectionOptions(connectOptions)//like scan options
+                        .setConnectionOptions(connectionOptions)//like scan options
                         .setLog(true, "TAG")
                         .init(this.getApplication());//Context is needed here,do not use Activity,which can cause Activity leak
 
@@ -130,12 +130,12 @@ You can connect to remote device by device address or BleDevice object
         };
 
        bleManager.connect(bleDevice, bleConnectCallback);
-       //connect with specified connectOptions
-       bleManager.connect(bleDevice, connectOptions, bleConnectCallback);
+       //connect with specified connectionOptions
+       bleManager.connect(bleDevice, connectionOptions, bleConnectCallback);
 
        //connect with mac address
        bleManager.connect(address, bleConnectCallback);
-       bleManager.connect(address, connectOptions, bleConnectCallback);
+       bleManager.connect(address, connectionOptions, bleConnectCallback);
 
 ```
 

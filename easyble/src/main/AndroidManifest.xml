@@ -14,6 +14,7 @@
     <!-- 2.Android6 ~ Android11(api23~30) -->
     <!-- Android6 ~ 9(api23 ~ 28):  ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION -->
     <!-- Android10 ~ 11(api29 ~ 30): ACCESS_FINE_LOCATION -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- 3.Android12(api31) or higher -->

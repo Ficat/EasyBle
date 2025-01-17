@@ -8,15 +8,18 @@ import com.ficat.easyble.BleDevice;
  */
 
 public interface BleCallback {
-    int FAIL_DISCONNECTED = 200; //connection with remote device is not established yet
-    int FAIL_CONNECTION_TIMEOUT = 201;//connection timed out
-    int FAIL_CONNECTION_CANCELED = 202;//connection canceled
-    int FAIL_SERVICE_NOT_FOUND = 203; //specified service not found
-    int FAIL_CHARACTERISTIC_NOT_FOUND_IN_SERVICE = 204; //specified characteristic not found in specified service
-    int FAIL_NOTIFICATION_OR_INDICATION_UNSUPPORTED = 205; //specified characteristic doesn't support notification or indication
-    int FAIL_READ_UNSUPPORTED = 206; //specified characteristic doesn't support reading
-    int FAIL_WRITE_UNSUPPORTED = 207; //specified characteristic doesn't support writing
-    int FAIL_OTHER = 208;//unknown reason
+    int FAILURE_CONNECTION_NOT_ESTABLISHED = 200; //connection not established yet
+    int FAILURE_CONNECTION_TIMEOUT = 201;//connection timed out
+    int FAILURE_CONNECTION_FAILED = 202;//connection failed
+    int FAILURE_CONNECTION_CANCELED = 203;//connection canceled
 
-    void onFailure(int failCode, String info, BleDevice device);
+    int FAILURE_SERVICE_NOT_FOUND = 300; //specified service not found
+    int FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE = 301; //characteristic not found in service
+    int FAILURE_NOTIFICATION_OR_INDICATION_UNSUPPORTED = 302; //characteristic doesn't support notification/indication
+    int FAILURE_READ_UNSUPPORTED = 303; //characteristic doesn't support reading
+    int FAILURE_WRITE_UNSUPPORTED = 304; //characteristic doesn't support writing
+
+    int FAILURE_OTHER = 400;//unknown reason
+
+    void onFailure(int failureCode, String info, BleDevice device);
 }

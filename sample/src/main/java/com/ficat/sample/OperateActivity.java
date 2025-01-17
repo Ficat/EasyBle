@@ -1,10 +1,11 @@
 package com.ficat.sample;
 
-import android.app.ProgressDialog;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
@@ -16,6 +17,7 @@ import android.widget.Toast;
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
 import com.ficat.easyble.Logger;
+import com.ficat.easyble.gatt.BleHandlerThread;
 import com.ficat.easyble.gatt.callback.BleCallback;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
@@ -25,11 +27,11 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.gatt.data.CharacteristicInfo;
 import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.sample.adapter.DeviceServiceInfoAdapter;
+import com.ficat.sample.data.ExtraInfo;
 import com.ficat.sample.utils.ByteUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class OperateActivity extends AppCompatActivity implements View.OnClickListener {
     public static final String KEY_DEVICE_INFO = "keyDeviceInfo";
@@ -59,18 +61,23 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
     private void initData() {
         device = getIntent().getParcelableExtra(KEY_DEVICE_INFO);
+        Parcelable p = device.getParcelableExtra();
+        if (p instanceof ExtraInfo) {
+            ExtraInfo e = (ExtraInfo) p;
+            Logger.i("Extra info=" + e.toString());
+        }
         addDeviceInfoDataAndUpdate();
     }
 
     private void addDeviceInfoDataAndUpdate() {
         if (device == null) return;
-        Map<ServiceInfo, List<CharacteristicInfo>> deviceInfo = BleManager.getInstance().getDeviceServices(device.getAddress());
-        if (deviceInfo == null) {
+        List<ServiceInfo> services = BleManager.getInstance().getDeviceServices(device.getAddress());
+        if (services == null) {
             return;
         }
-        for (Map.Entry<ServiceInfo, List<CharacteristicInfo>> e : deviceInfo.entrySet()) {
-            groupList.add(e.getKey());
-            childList.add(e.getValue());
+        for (ServiceInfo si : services) {
+            groupList.add(si);
+            childList.add(si.getCharacteristics());
         }
         adapter.notifyDataSetChanged();
         tvInfoCurrentUuid.setVisibility(View.VISIBLE);
@@ -191,17 +198,26 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     public void onClick(View v) {
         if (v.getId() == R.id.tv_connect) {
+            // This method will use the connection option that you set by BleManager#setScanOptions(),
+            // and it's all callbacks will run in UI-Thread
             BleManager.getInstance().connect(device.getAddress(), connectCallback);
+
+            // Select a specified connection option
+//            BleManager.getInstance().connect(device.getAddress(), BleManager.ConnectionOptions.newInstance(), connectCallback);
+
+            // Select a thread to run all operation callbacks, like connect/notify/read/write and so on
+//            BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
+            return;
+        } else if (v.getId() == R.id.tv_disconnect) {
+            BleManager.getInstance().disconnect(device.getAddress());
             return;
         }
         if (!BleManager.getInstance().isConnected(device.getAddress())) {
-            Toast.makeText(this, getResources().getString(R.string.tips_connection_disconnected), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getResources().getString(R.string.tips_connection_disconnected),
+                    Toast.LENGTH_SHORT).show();
             return;
         }
         switch (v.getId()) {
-            case R.id.tv_disconnect:
-                BleManager.getInstance().disconnect(device.getAddress());
-                break;
             case R.id.tv_read_rssi:
                 BleManager.getInstance().readRssi(device, rssiCallback);
                 break;
@@ -212,7 +228,8 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
             case R.id.tv_write:
                 String str = etWrite.getText().toString();
                 if (TextUtils.isEmpty(str)) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_write_operation), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getResources().getString(R.string.tips_write_operation),
+                            Toast.LENGTH_SHORT).show();
                     return;
                 }
                 BleManager.getInstance().write(device, curService.getUuid().toString(),
@@ -238,48 +255,73 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     private BleConnectCallback connectCallback = new BleConnectCallback() {
         @Override
         public void onStart(boolean startConnectSuccess, String info, BleDevice device) {
-            Logger.e("start connecting:" + startConnectSuccess + "    info=" + info);
-            OperateActivity.this.device = device;
-            updateConnectionStateUi(false);
-            if (!startConnectSuccess) {
-                Toast.makeText(OperateActivity.this, "start connecting fail:" + info, Toast.LENGTH_LONG).show();
-            }
+            Logger.e("start connecting:" + startConnectSuccess + "    info=" + info + "   Thread=" +
+                    Thread.currentThread().getName());
+            runOnUiThread(() -> {
+                OperateActivity.this.device = device;
+                updateConnectionStateUi(false);
+                if (!startConnectSuccess) {
+                    Toast.makeText(OperateActivity.this, "start connecting fail:" + info, Toast.LENGTH_LONG).show();
+                }
+            });
+
         }
 
         @Override
         public void onConnected(BleDevice device) {
-            addDeviceInfoDataAndUpdate();
-            updateConnectionStateUi(true);
+            Logger.e("connected. " + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread((Runnable) () -> {
+                addDeviceInfoDataAndUpdate();
+                updateConnectionStateUi(true);
+            });
+
         }
 
         @Override
         public void onDisconnected(String info, int status, BleDevice device) {
-            Logger.e("disconnected!");
-            reset();
-            updateConnectionStateUi(false);
+            Logger.e("disconnected!" + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> {
+                reset();
+                updateConnectionStateUi(false);
+            });
+
         }
 
         @Override
-        public void onFailure(int failCode, String info, BleDevice device) {
-            Logger.e("connect fail:" + info);
-            Toast.makeText(OperateActivity.this,
-                    getResources().getString(failCode == BleCallback.FAIL_CONNECTION_TIMEOUT ?
-                            R.string.tips_connect_timeout : R.string.tips_connect_fail), Toast.LENGTH_LONG).show();
-            reset();
-            updateConnectionStateUi(false);
+        public void onFailure(int failureCode, String info, BleDevice device) {
+            Logger.e("connect fail:" + info + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> {
+                String tips;
+                switch (failureCode) {
+                    case BleCallback.FAILURE_CONNECTION_TIMEOUT:
+                        tips = getString(R.string.tips_connection_timeout);
+                        break;
+                    case BleCallback.FAILURE_CONNECTION_CANCELED:
+                        tips = getString(R.string.tips_connection_canceled);
+                        break;
+                    case BleCallback.FAILURE_CONNECTION_FAILED:
+                    default:
+                        tips = getString(R.string.tips_connection_fail);
+                        break;
+                }
+                Toast.makeText(OperateActivity.this, tips, Toast.LENGTH_LONG).show();
+                reset();
+                updateConnectionStateUi(false);
+            });
         }
     };
 
     private BleRssiCallback rssiCallback = new BleRssiCallback() {
         @Override
         public void onRssi(int rssi, BleDevice bleDevice) {
-            Logger.e("read rssi success:" + rssi);
-            Toast.makeText(OperateActivity.this, rssi + "dBm", Toast.LENGTH_SHORT).show();
+            Logger.e("read rssi success:" + rssi + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> Toast.makeText(OperateActivity.this, rssi + "dBm", Toast.LENGTH_SHORT).show());
+
         }
 
         @Override
-        public void onFailure(int failCode, String info, BleDevice device) {
-            Logger.e("read rssi fail:" + info);
+        public void onFailure(int failureCode, String info, BleDevice device) {
+            Logger.e("read rssi fail:" + info + "   Thread=" + Thread.currentThread().getName());
         }
     };
 
@@ -287,52 +329,55 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         @Override
         public void onCharacteristicChanged(byte[] data, BleDevice device) {
             String s = ByteUtils.bytes2HexStr(data);
-            Logger.e("onCharacteristicChanged:" + s);
-            updateNotificationInfo(s);
+            Logger.e("onCharacteristicChanged:" + s + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> updateNotificationInfo(s));
         }
 
         @Override
         public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
-            Logger.e("notify success uuid:" + notifySuccessUuid);
-            tvInfoNotification.setVisibility(View.VISIBLE);
-            if (!notifySuccessUuids.contains(notifySuccessUuid)) {
-                notifySuccessUuids.add(notifySuccessUuid);
-            }
-            updateNotificationInfo("");
+            Logger.e("notify success uuid:" + notifySuccessUuid + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> {
+                tvInfoNotification.setVisibility(View.VISIBLE);
+                if (!notifySuccessUuids.contains(notifySuccessUuid)) {
+                    notifySuccessUuids.add(notifySuccessUuid);
+                }
+                updateNotificationInfo("");
+            });
+
         }
 
         @Override
-        public void onFailure(int failCode, String info, BleDevice device) {
-            Logger.e("notify fail:" + info);
-            Toast.makeText(OperateActivity.this, "notify fail:" + info, Toast.LENGTH_LONG).show();
+        public void onFailure(int failureCode, String info, BleDevice device) {
+            Logger.e("notify fail:" + info + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> Toast.makeText(OperateActivity.this, "notify fail:" + info, Toast.LENGTH_LONG).show());
         }
     };
 
     private BleWriteCallback writeCallback = new BleWriteCallback() {
         @Override
         public void onWriteSuccess(byte[] data, BleDevice device) {
-            Logger.e("write success:" + ByteUtils.bytes2HexStr(data));
-            tvWriteResult.setText(ByteUtils.bytes2HexStr(data));
+            Logger.e("write success:" + ByteUtils.bytes2HexStr(data) + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> tvWriteResult.setText(ByteUtils.bytes2HexStr(data)));
         }
 
         @Override
-        public void onFailure(int failCode, String info, BleDevice device) {
-            Logger.e("write fail:" + info);
-            tvWriteResult.setText("write fail:" + info);
+        public void onFailure(int failureCode, String info, BleDevice device) {
+            Logger.e("write fail:" + info + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> tvWriteResult.setText("write fail:" + info));
         }
     };
 
     private BleReadCallback readCallback = new BleReadCallback() {
         @Override
         public void onReadSuccess(byte[] data, BleDevice device) {
-            Logger.e("read success:" + ByteUtils.bytes2HexStr(data));
-            tvReadResult.setText(ByteUtils.bytes2HexStr(data));
+            Logger.e("read success:" + ByteUtils.bytes2HexStr(data) + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> tvReadResult.setText(ByteUtils.bytes2HexStr(data)));
         }
 
         @Override
-        public void onFailure(int failCode, String info, BleDevice device) {
-            Logger.e("read fail:" + info);
-            tvReadResult.setText("read fail:" + info);
+        public void onFailure(int failureCode, String info, BleDevice device) {
+            Logger.e("read fail:" + info + "   Thread=" + Thread.currentThread().getName());
+            runOnUiThread(() -> tvReadResult.setText("read fail:" + info));
         }
     };
 }

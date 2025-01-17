@@ -41,14 +41,14 @@ dependencies {
                 .scanPeriod(10000)
                 .scanDeviceName(null);
 
-        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+        BleManager.ConnectOptions connectionOptions = BleManager.ConnectOptions
                 .newInstance()
                 .connectTimeout(12000);
 
         BleManager manager = BleManager
                 .getInstance()
                 .setScanOptions(scanOptions)//非必须设置项
-                .setConnectionOptions(connectOptions)
+                .setConnectionOptions(connectionOptions)
                 .setLog(true, "TAG")
                 .init(this.getApplication());//这里需要Context，但注意不要传Activity
         
@@ -126,11 +126,11 @@ dependencies {
 
        bleManager.connect(bleDevice, bleConnectCallback);
        //使用指定连接选项参数进行连接
-       bleManager.connect(bleDevice, connectOptions, bleConnectCallback);
+       bleManager.connect(bleDevice, connectionOptions, bleConnectCallback);
 
        //使用mac地址连接
        bleManager.connect(address, bleConnectCallback);
-       bleManager.connect(address, connectOptions, bleConnectCallback);
+       bleManager.connect(address, connectionOptions, bleConnectCallback);
 
 ```
 
