@@ -56,7 +56,7 @@ public final class BleHandlerThread extends HandlerThread {
     }
 
     boolean quitLooperSafely() {
-        Looper looper = super.getLooper();
+        Looper looper = getLooperInThread();
         if (looper != null) {
             looper.quitSafely();
             return true;

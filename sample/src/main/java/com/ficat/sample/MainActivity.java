@@ -110,6 +110,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId()) {
             case R.id.btn_request_permission:
                 List<String> list = BleManager.getBleRequiredPermissions();
+                // Lower version devices may not require any permissions, so check it
+                if (list.size() <= 0){
+                    return;
+                }
                 EasyPermissions
                         .with(this)
                         .request(list.toArray(new String[0]))

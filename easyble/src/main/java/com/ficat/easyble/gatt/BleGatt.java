@@ -16,7 +16,7 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import java.util.List;
 
 public interface BleGatt {
-    void connect(int connectTimeout, BleDevice device, BleConnectCallback callback,
+    void connect(int timeoutMills, BleDevice device, BleConnectCallback callback,
                  BleHandlerThread bleHandlerThread);
 
     void disconnect(String address);

@@ -406,7 +406,7 @@ public final class BleManager {
      */
     public List<ServiceInfo> getDeviceServices(BleDevice device) {
         if (device == null) {
-            return null;
+            throw new IllegalArgumentException("BleDevice is null");
         }
         return getDeviceServices(device.getAddress());
     }
@@ -493,7 +493,7 @@ public final class BleManager {
      * Turn on local bluetooth, calling the method will show users a request dialog
      * to grant or reject,so you can get the result from Activity#onActivityResult().
      * <p>
-     * Note that if Android12(api31) or higher, only the permission
+     * Note that if on Android12(api31) or higher devices, only the permission
      * {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
      * calling this method can work, or it will return false directly.
      *
@@ -590,6 +590,7 @@ public final class BleManager {
             //BLUETOOTH_CONNECT: used to get peripheral device name (BluetoothDevice#getName())
             list.add(Manifest.permission.BLUETOOTH_SCAN);
             list.add(Manifest.permission.BLUETOOTH_CONNECT);
+            list.add(Manifest.permission.BLUETOOTH_ADVERTISE);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {//Android10
             list.add(Manifest.permission.ACCESS_FINE_LOCATION);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {//Android6

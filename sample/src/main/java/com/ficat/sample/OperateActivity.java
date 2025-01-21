@@ -200,13 +200,13 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         if (v.getId() == R.id.tv_connect) {
             // This method will use the connection option that you set by BleManager#setScanOptions(),
             // and it's all callbacks will run in UI-Thread
-            BleManager.getInstance().connect(device.getAddress(), connectCallback);
+//            BleManager.getInstance().connect(device.getAddress(), connectCallback);
 
             // Select a specified connection option
 //            BleManager.getInstance().connect(device.getAddress(), BleManager.ConnectionOptions.newInstance(), connectCallback);
 
             // Select a thread to run all operation callbacks, like connect/notify/read/write and so on
-//            BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
+            BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
             return;
         } else if (v.getId() == R.id.tv_disconnect) {
             BleManager.getInstance().disconnect(device.getAddress());
@@ -348,6 +348,23 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
         @Override
         public void onFailure(int failureCode, String info, BleDevice device) {
+            switch (failureCode) {
+                case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+                    // Connection is not established yet, or disconnected from the remote device
+                    break;
+                case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    // Service not found in the remote device
+                    break;
+                case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    // Characteristic not found in specified service
+                    break;
+                case BleCallback.FAILURE_NOTIFICATION_OR_INDICATION_UNSUPPORTED:
+                    // Characteristic not support notification or indication
+                    break;
+                case BleCallback.FAILURE_OTHER:
+                    // Other reason
+                    break;
+            }
             Logger.e("notify fail:" + info + "   Thread=" + Thread.currentThread().getName());
             runOnUiThread(() -> Toast.makeText(OperateActivity.this, "notify fail:" + info, Toast.LENGTH_LONG).show());
         }
@@ -362,6 +379,23 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
         @Override
         public void onFailure(int failureCode, String info, BleDevice device) {
+            switch (failureCode) {
+                case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+                    // Connection is not established yet, or disconnected from the remote device
+                    break;
+                case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    // Service not found in the remote device
+                    break;
+                case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    // Characteristic not found in specified service
+                    break;
+                case BleCallback.FAILURE_WRITE_UNSUPPORTED:
+                    // Characteristic not support writing
+                    break;
+                case BleCallback.FAILURE_OTHER:
+                    // Other reason
+                    break;
+            }
             Logger.e("write fail:" + info + "   Thread=" + Thread.currentThread().getName());
             runOnUiThread(() -> tvWriteResult.setText("write fail:" + info));
         }
@@ -376,6 +410,23 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
         @Override
         public void onFailure(int failureCode, String info, BleDevice device) {
+            switch (failureCode) {
+                case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+                    // Connection is not established yet, or disconnected from the remote device
+                    break;
+                case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    // Service not found in the remote device
+                    break;
+                case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    // Characteristic not found in specified service
+                    break;
+                case BleCallback.FAILURE_READ_UNSUPPORTED:
+                    // Characteristic not support reading
+                    break;
+                case BleCallback.FAILURE_OTHER:
+                    // Other reason
+                    break;
+            }
             Logger.e("read fail:" + info + "   Thread=" + Thread.currentThread().getName());
             runOnUiThread(() -> tvReadResult.setText("read fail:" + info));
         }

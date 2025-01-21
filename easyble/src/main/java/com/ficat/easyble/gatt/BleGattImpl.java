@@ -49,9 +49,9 @@ public final class BleGattImpl implements BleGatt {
     private static final int MTU_MAX = 512;
     private static final int MTU_MIN = 23;
     private static final int ATT_OCCUPY_BYTES_NUM = 3;
+    private static final int DEFAULT_TIME_OUT_MILLS = 10000;//default 10s
 
     private final Context mContext;
-    private int mConnectTimeout = 10000;//default 10s
     private final Map<String, BleGattCommunicator> mBleGattCommunicatorMap;
     private final Handler mMainHandler;
 
@@ -62,36 +62,33 @@ public final class BleGattImpl implements BleGatt {
     }
 
     @Override
-    public void connect(int connectTimeout, final BleDevice device, final BleConnectCallback callback,
+    public void connect(int timeoutMills, final BleDevice device, final BleConnectCallback callback,
                         BleHandlerThread bleHandlerThread) {
-        if (!mBleGattCommunicatorMap.containsKey(device.getAddress())) {
-            mBleGattCommunicatorMap.put(device.getAddress(), new BleGattCommunicator(device, new AccessKey()));
+        BleGattCommunicator c = mBleGattCommunicatorMap.get(device.getAddress());
+        if (c == null) {
+            c = new BleGattCommunicator(device, new AccessKey());
+            mBleGattCommunicatorMap.put(device.getAddress(), c);
         }
-        final BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
-        if (communicator == null) {
-            callback.onFailure(BleCallback.FAILURE_OTHER, "BleGattCommunicator not found", device);
-            return;
-        }
-        if (communicator.mBleHandlerThread != bleHandlerThread) {
-            // Old BleHandlerThread should be shut down, and reset handler to main thread handler
-            communicator.stopHandlerThreadAndResetHandler();
-            // If select a specified thread, all callbacks run in this thread,
-            // otherwise run in main thread
-            communicator.mBleHandlerThread = bleHandlerThread;
-            if (bleHandlerThread != null) {
-                if (!bleHandlerThread.isLooperPrepared()) {
-                    bleHandlerThread.start();
-                }
-                communicator.mHandler = new Handler(bleHandlerThread.getLooperInThread());
+        final BleGattCommunicator communicator = c;
+
+        // If select a specified thread, all callbacks run in this thread,
+        // otherwise run in main thread
+        Handler handler = mMainHandler;
+        if (bleHandlerThread != null) {
+            if (!bleHandlerThread.isLooperPrepared()) {
+                bleHandlerThread.start();
             }
+            handler = new Handler(bleHandlerThread.getLooperInThread());
         }
+
+        // Check if the connection can start
         boolean bluetoothOff = !BleManager.isBluetoothOn();
         boolean noPermission = !BleManager.connectionPermissionGranted(mContext);
         boolean reachConnectionMaxNum = reachConnectionMaxNum();
         boolean isConnecting = communicator.mDevice.isConnecting();
         boolean isConnected = communicator.mDevice.isConnected();
         if (bluetoothOff || noPermission || reachConnectionMaxNum || isConnecting || isConnected) {
-            communicator.mHandler.post(new Runnable() {
+            handler.post(new Runnable() {
                 @Override
                 public void run() {
                     String tips = "";
@@ -106,18 +103,17 @@ public final class BleGattImpl implements BleGatt {
                     } else {
                         tips = "Connection has been established already";
                     }
-                    //Use the previous BleDevice object that maintains correct connection state
-                    callback.onStart(false, tips, communicator.mDevice);
+                    callback.onStart(false, tips, device);
                 }
             });
+            // Failed to start connection, so quit looper
+            if (bleHandlerThread != null) {
+                bleHandlerThread.quitLooperSafely();
+            }
             return;
         }
-        if (communicator.mDevice != device) {//Use the newest BleDevice object
-            communicator.mDevice = device;
-        }
-        communicator.mConnectCallback = callback;
 
-        // Connect to gatt service
+        // Connect to GATT
         BluetoothGatt gatt;
 //        if (Build.VERSION.SDK_INT >= 26) {
 //            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator,
@@ -126,26 +122,45 @@ public final class BleGattImpl implements BleGatt {
 //            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator);
 //        }
         gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator);
+
+        // Failed to connect GATT
         if (gatt == null) {
-            communicator.mHandler.post(new Runnable() {
+            handler.post(new Runnable() {
                 @Override
                 public void run() {
                     callback.onStart(false, "Failed to call BluetoothDevice#connectGatt()", device);
                 }
             });
+            //Failed to start connection, so quit looper
+            if (bleHandlerThread != null) {
+                bleHandlerThread.quitLooperSafely();
+            }
             return;
         }
-        communicator.setBleDeviceConnectionState(BleDevice.CONNECTING);
+
+        // Connected with GATT, update communicator
+        if (communicator.mBleHandlerThread != bleHandlerThread) {
+            communicator.resetThreadAndHandler();
+            communicator.mBleHandlerThread = bleHandlerThread;
+            if (bleHandlerThread != null) {
+                communicator.mHandler = new Handler(bleHandlerThread.getLooperInThread());
+            }
+        }
+        if (communicator.mDevice != device) {// Use the newest BleDevice object
+            communicator.mDevice = device;
+        }
         communicator.mGatt = gatt;
+        communicator.mConnectCallback = callback;
+        communicator.setBleDeviceConnectionState(BleDevice.CONNECTING);
         communicator.mHandler.post(new Runnable() {
             @Override
             public void run() {
-                callback.onStart(true, "Connection started successfully", device);
+                communicator.mConnectCallback.onStart(true,
+                        "Connection started successfully", communicator.mDevice);
             }
         });
-        if (connectTimeout > 0) {
-            mConnectTimeout = connectTimeout;
-        }
+
+        // Send connection timeout msg
         Message msg = Message.obtain(communicator.mHandler, new Runnable() {
             @Override
             public void run() {
@@ -154,14 +169,14 @@ public final class BleGattImpl implements BleGatt {
                     communicator.refreshDeviceCache();
                     communicator.mGatt.close();
                 }
-                communicator.clearAll();
                 communicator.setBleDeviceConnectionState(BleDevice.DISCONNECTED);
-                callback.onFailure(BleCallback.FAILURE_CONNECTION_TIMEOUT, "Connection timed out", communicator.mDevice);
-                communicator.stopHandlerThreadAndResetHandler();
+                communicator.mConnectCallback.onFailure(BleCallback.FAILURE_CONNECTION_TIMEOUT,
+                        "Connection timed out", communicator.mDevice);
+                communicator.clearAndResetAll();
             }
         });
         msg.obj = communicator.mDevice.getAddress();
-        communicator.mHandler.sendMessageDelayed(msg, mConnectTimeout);
+        communicator.mHandler.sendMessageDelayed(msg, timeoutMills > 0 ? timeoutMills : DEFAULT_TIME_OUT_MILLS);
     }
 
     @Override
@@ -180,7 +195,6 @@ public final class BleGattImpl implements BleGatt {
         if (communicator.mDevice.isConnecting()) {
             communicator.refreshDeviceCache();
             communicator.mGatt.close();
-            communicator.clearAll();
             communicator.setBleDeviceConnectionState(BleDevice.DISCONNECTED);
             communicator.mHandler.post(new Runnable() {
                 @Override
@@ -191,7 +205,7 @@ public final class BleGattImpl implements BleGatt {
                     }
                 }
             });
-            communicator.stopHandlerThreadAndResetHandler();
+            communicator.clearAndResetAll();
         }
     }
 
@@ -394,7 +408,7 @@ public final class BleGattImpl implements BleGatt {
         }
         // Check data and length
         Handler handler = communicator.mHandler;
-        int maxNumPerPack = MTU_MAX - ATT_OCCUPY_BYTES_NUM;
+        int maxNumPerPack = communicator.mCurrentMtu - ATT_OCCUPY_BYTES_NUM;
         if (data == null || data.length < 1 || data.length > maxNumPerPack) {
             handler.post(new Runnable() {
                 @Override
@@ -454,7 +468,7 @@ public final class BleGattImpl implements BleGatt {
         }
         Handler handler = communicator.mHandler;
         // Check data and data length
-        int maxNumPerPack = MTU_MAX - ATT_OCCUPY_BYTES_NUM;
+        int maxNumPerPack = communicator.mCurrentMtu - ATT_OCCUPY_BYTES_NUM;
         boolean invalidData = writeData == null || writeData.length == 0;
         boolean invalidPackLen = lengthPerPackage < 1 || lengthPerPackage > maxNumPerPack;
         if (invalidData || invalidPackLen) {
@@ -535,9 +549,9 @@ public final class BleGattImpl implements BleGatt {
 
     private void writeData(final BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                            final BleWriteCallback callback, BleGattCommunicator communicator) {
-        int minNumPerPack = MTU_MIN - ATT_OCCUPY_BYTES_NUM;
+        int minNumPerPack = communicator.mCurrentMtu - ATT_OCCUPY_BYTES_NUM;
         if (data.length > minNumPerPack) {
-            Logger.w("Data length is greater than the default(20 Bytes), make sure  MTU >= " +
+            Logger.w("Data length is greater than the default(" + minNumPerPack + " Bytes), make sure  MTU >= " +
                     (data.length + ATT_OCCUPY_BYTES_NUM));
         }
         // Add callback to communicator
@@ -624,7 +638,7 @@ public final class BleGattImpl implements BleGatt {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    callback.onFailure(BleCallback.FAILURE_OTHER, "Failed to read rssi due to unknown reason", device);
+                    callback.onFailure(BleCallback.FAILURE_OTHER, "Failed to request MTU due to unknown reason", device);
                 }
             });
         }
@@ -706,7 +720,7 @@ public final class BleGattImpl implements BleGatt {
         private final Map<OperationIdentify, BleNotifyCallback> mNotifyCallbackMap;
         private final Map<OperationIdentify, BleReadCallback> mReadCallbackMap;
         private final Map<OperationIdentify, BleWriteCallback> mWriteCallbackMap;
-
+        private volatile int mCurrentMtu;
         private BluetoothGatt mGatt;
 
         private BleGattCommunicator(BleDevice device, AccessKey key) {
@@ -723,6 +737,7 @@ public final class BleGattImpl implements BleGatt {
             this.mReadCallbackMap = new ConcurrentHashMap<>();
             this.mWriteCallbackMap = new ConcurrentHashMap<>();
             this.mServiceList = new ArrayList<>();
+            setCurrentMtu(BleGattImpl.MTU_MIN);
         }
 
         @Override
@@ -742,7 +757,6 @@ public final class BleGattImpl implements BleGatt {
                     case BluetoothProfile.STATE_DISCONNECTED:
                         refreshDeviceCache();
                         gatt.close();
-                        clearAll();
                         setBleDeviceConnectionState(BleDevice.DISCONNECTED);
                         runOrQueueCallback(new Runnable() {
                             @Override
@@ -752,13 +766,12 @@ public final class BleGattImpl implements BleGatt {
                                 }
                             }
                         });
-                        stopHandlerThreadAndResetHandler();
+                        clearAndResetAll();
                         break;
                 }
             } else {
                 refreshDeviceCache();
                 gatt.close();
-                clearAll();
                 if (mDevice.isConnecting()) {
                     //Remove connection timeout message
                     mHandler.removeCallbacksAndMessages(address);
@@ -785,7 +798,7 @@ public final class BleGattImpl implements BleGatt {
                         }
                     });
                 }
-                stopHandlerThreadAndResetHandler();
+                clearAndResetAll();
             }
         }
 
@@ -952,6 +965,7 @@ public final class BleGattImpl implements BleGatt {
                 return;
             }
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                setCurrentMtu(mtu);
                 runOrQueueCallback(new Runnable() {
                     @Override
                     public void run() {
@@ -986,26 +1000,36 @@ public final class BleGattImpl implements BleGatt {
             return null;
         }
 
-        private void clearAll() {
-            mConnectCallback = null;
-            mMtuCallback = null;
-            mRssiCallback = null;
+        private void clearAndResetAll() {
             mReadCallbackMap.clear();
             mWriteCallbackMap.clear();
             mNotifyCallbackMap.clear();
             mServiceList.clear();
+            mConnectCallback = null;
+            mMtuCallback = null;
+            mRssiCallback = null;
             mGatt = null;
+            // Reset MTU
+            setCurrentMtu(BleGattImpl.MTU_MIN);
+            // Reset BleHandlerThread and Handler
+            resetThreadAndHandler();
         }
 
-        private void stopHandlerThreadAndResetHandler() {
-            //Stop BleHandlerThread
+        private void resetThreadAndHandler() {
+            // Stop BleHandlerThread
             if (mBleHandlerThread != null) {
                 mBleHandlerThread.quitLooperSafely();
                 mBleHandlerThread = null;
             }
-            //Reset handler
+            // Reset handler
             if (mHandler.getLooper() != Looper.getMainLooper()) {
                 mHandler = new Handler(Looper.getMainLooper());
+            }
+        }
+
+        private void setCurrentMtu(int mtu) {
+            synchronized (BleGattCommunicator.this) {
+                mCurrentMtu = mtu;
             }
         }
 
