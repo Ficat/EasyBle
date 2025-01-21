@@ -44,7 +44,7 @@ public final class BleManager {
     private BleReceiver mReceiver;
 
     /**
-     * The key to obtain some object, like BleGatt or BleScan instance
+     * The key to obtain some objects, like BleGatt or BleScan instance
      */
     private AccessKey mAccessKey;
 
@@ -149,7 +149,7 @@ public final class BleManager {
     }
 
     /**
-     * Stop scanning device, it's strongly recommended that you call this method
+     * Stop scanning, it's strongly recommended that you call this method
      * to stop scanning after target device has been discovered
      */
     public void stopScan() {
@@ -257,7 +257,7 @@ public final class BleManager {
      * @param serviceUuid service uuid which the notification or indication uuid belongs to
      * @param notifyUuid  characteristic uuid that you wanna notify or indicate, note that
      *                    the characteristic must support notification or indication, or it
-     *                    will call back onFail()
+     *                    will call back onFailureure()
      * @param callback    notification callback
      */
     public void notify(BleDevice device, String serviceUuid, String notifyUuid, BleNotifyCallback callback) {
@@ -290,7 +290,7 @@ public final class BleManager {
      * @param device      remote device
      * @param serviceUuid service uuid that the writable characteristic belongs to
      * @param writeUuid   characteristic uuid which you write data, note that the
-     *                    characteristic must be writable, or it will call back onFail()
+     *                    characteristic must be writable, or it will call back onFailure()
      * @param data        data
      * @param callback    result callback
      */
@@ -305,31 +305,19 @@ public final class BleManager {
         mGatt.write(device, serviceUuid, writeUuid, data, callback);
     }
 
-    /**
-     * Write by batch, you can use this method to split data and deliver it to remote
-     * device by batch
-     *
-     * @param device           remote device
-     * @param serviceUuid      service uuid that the writable characteristic belongs to
-     * @param writeUuid        characteristic uuid which you write data, note that the
-     *                         characteristic must be writable, or it will call back onFail()
-     * @param data             data
-     * @param lengthPerPackage data length per package
-     * @param callback         result callback
-     */
     public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
                              int lengthPerPackage, BleWriteByBatchCallback callback) {
         writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, 0L, callback);
     }
 
     /**
-     * Write by batch, you can use this method to split data and deliver it to remote
+     * Write by batch, you can call this method to split data and deliver it to remote
      * device by batch
      *
      * @param device           remote device
      * @param serviceUuid      service uuid that the writable characteristic belongs to
      * @param writeUuid        characteristic uuid which you write data, note that the
-     *                         characteristic must be writable, or it will call back onFail()
+     *                         characteristic must be writable, or it will call back onFailure()
      * @param data             data
      * @param lengthPerPackage data length per package
      * @param writeDelay       the interval of packages
@@ -352,7 +340,7 @@ public final class BleManager {
      * @param device      remote device
      * @param serviceUuid service uuid that the readable characteristic belongs to
      * @param readUuid    characteristic uuid you wanna read, note that the characteristic
-     *                    must be readable, or it will call back onFail()
+     *                    must be readable, or it will call back onFailure()
      * @param callback    the read callback
      */
     public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
@@ -398,12 +386,6 @@ public final class BleManager {
         mGatt.setMtu(device, mtu, callback);
     }
 
-    /**
-     * Get service information which the remote device supports.
-     * Note that this method will return null if this device is not connected
-     *
-     * @return service information
-     */
     public List<ServiceInfo> getDeviceServices(BleDevice device) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
@@ -432,9 +414,9 @@ public final class BleManager {
     }
 
     /**
-     * Return true if the specific remote device has connected with local device
+     * Return true if the remote device has connected with local device
      *
-     * @param address device mac
+     * @param address mac address
      * @return true if local device has connected to the specific remote device
      */
     public boolean isConnected(String address) {
@@ -443,7 +425,7 @@ public final class BleManager {
     }
 
     /**
-     * Return true if local device is connecting with the specific remote device
+     * Return true if local device is connecting with the remote device
      */
     public boolean isConnecting(String address) {
         checkBluetoothAddress(address);
@@ -497,9 +479,8 @@ public final class BleManager {
      * {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
      * calling this method can work, or it will return false directly.
      *
-     * @param activity    activity, note that to get the result whether users have granted
-     *                    or rejected to enable bluetooth, you should handle the method
-     *                    onActivityResult() of this activity
+     * @param activity    activity, you can receive request result in onActivityResult() of
+     *                    this activity
      * @param requestCode enable bluetooth request code
      * @return true if the request to turn on bluetooth has started successfully, otherwise false
      */
@@ -560,7 +541,7 @@ public final class BleManager {
     /**
      * Return true if local bluetooth is enabled at present
      *
-     * @return true if local bluetooth is open
+     * @return true if local bluetooth is turned on
      */
     public static boolean isBluetoothOn() {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();

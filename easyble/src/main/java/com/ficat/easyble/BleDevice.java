@@ -10,7 +10,7 @@ import android.text.TextUtils;
  */
 
 public final class BleDevice implements Parcelable {
-    private static final String DEFAULT_NAME = "unknown";
+    private static final String DEFAULT_NAME = "Unknown";
 
     /**
      * Connection state constants

@@ -47,7 +47,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
     };
 
     /**
-     * The key to obtain some object, like BleDevice instance
+     * The key to obtain some objects, like BleDevice instance
      */
     private final AccessKey mAccessorKey = new AccessKey();
 

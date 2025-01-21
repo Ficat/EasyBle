@@ -200,13 +200,13 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         if (v.getId() == R.id.tv_connect) {
             // This method will use the connection option that you set by BleManager#setScanOptions(),
             // and it's all callbacks will run in UI-Thread
-//            BleManager.getInstance().connect(device.getAddress(), connectCallback);
+            BleManager.getInstance().connect(device.getAddress(), connectCallback);
 
             // Select a specified connection option
 //            BleManager.getInstance().connect(device.getAddress(), BleManager.ConnectionOptions.newInstance(), connectCallback);
 
             // Select a thread to run all operation callbacks, like connect/notify/read/write and so on
-            BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
+//            BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
             return;
         } else if (v.getId() == R.id.tv_disconnect) {
             BleManager.getInstance().disconnect(device.getAddress());

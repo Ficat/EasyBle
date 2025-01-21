@@ -19,7 +19,7 @@ dependencies {
 
 ## Usage
  The framework uses BleManager to manager BLE
-### 1.Check if the device supports BLE and turn on bluetooth
+### 1.Check if the device supports BLE, request BLE required permissions and turn on bluetooth
 ```java
         // Check if the device supports BLE
         BleManager.supportBle(context);
@@ -39,7 +39,10 @@ dependencies {
         // bluetooth with a request dialog, and you will receive the result from the method
         // onActivityResult() of this activity. Note that the method requires BLE permissions,
         // so do not forget to request it and ensure all permissions have been granted.
-        BleManager.enableBluetooth(activity,requestCode);
+        boolean requestStart = BleManager.enableBluetooth(activity,requestCode);
+        if(!requestStart) {
+            // No BLE permissions or not support BLE
+        }
 ```
 
 ### 2.Get ble manager and initialization
@@ -151,7 +154,7 @@ You can connect to remote device by device address or BleDevice object. Like sca
        // Connect with mac address
        bleManager.connect(address, bleConnectCallback);
 
-       // Second param:  select a specified connection option
+       // Second param:  Select a specified connection option
        // Last param:    Select a thread to run all operation callbacks, like connect/notify/read/write
        //                and so on. If it's null, all callbacks will run in UI-Thread (By default, it's null)
        bleManager.connect(bleDevice, connectionOptions, connectCallback, new BleHandlerThread("BleThread"));
@@ -325,7 +328,7 @@ You must call destroy() to release some resources after BLE communication end
 |*supportBle(Context context)*|Check if this device supports ble|
 |*isBluetoothOn()*|Check if local bluetooth is enabled|
 |*isAddressValid(String address)*|Check if the address is valid|
-|*getBleRequiredPermissions()*|Get all BLE required permissions. Lower version may not require any permissions, so check the length of permissionList is necessary|
+|*getBleRequiredPermissions()*|Get all BLE required permissions. Lower version may not require any permissions, so do not forget to check the length of permissionList|
 |*allBlePermissionsGranted(Context context)*|Check if all BLE required permissions have been granted|
 |*scanPermissionGranted(Context context)*|Check if scan-permission has been granted|
 |*connectionPermissionGranted(Context context)*|Check if connection-permission has been granted|
