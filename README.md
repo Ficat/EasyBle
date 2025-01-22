@@ -77,8 +77,8 @@ On API23+ or higher devices, scan requires some permissions, so ensure all BLE p
         bleManager.startScan(new BleScanCallback() {
             @Override
             public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
-                String name = device.name;
-                String address = device.address;
+                String name = device.getName();
+                String address = device.getAddress();
             }
 
             @Override
