@@ -1,16 +1,15 @@
 package com.ficat.sample;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.location.LocationManager;
 import android.os.Build;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
 import android.widget.Button;
@@ -18,18 +17,18 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
+import com.ficat.easyble.Logger;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easypermissions.EasyPermissions;
-import com.ficat.easypermissions.RequestExecutor;
-import com.ficat.easypermissions.bean.Permission;
 import com.ficat.sample.adapter.ScanDeviceAdapter;
 import com.ficat.sample.adapter.CommonRecyclerViewAdapter;
+import com.ficat.sample.data.ExtraInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-    private final static String TAG = "EasyBle";
+    private final static int REQUEST_CODE_ENABLE_BLUETOOTH = 23;
 
     private RecyclerView rv;
     private BleManager manager;
@@ -47,32 +46,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void initView() {
         Button btnScan = findViewById(R.id.btn_scan);
+        Button btnEnableBT = findViewById(R.id.btn_enable_bluetooth);
+        Button btnPermission = findViewById(R.id.btn_request_permission);
         rv = findViewById(R.id.rv);
 
         btnScan.setOnClickListener(this);
+        btnEnableBT.setOnClickListener(this);
+        btnPermission.setOnClickListener(this);
     }
 
     private void initBleManager() {
         //check if this android device supports ble
         if (!BleManager.supportBle(this)) {
+            Toast.makeText(this, getString(R.string.tips_not_support_ble), Toast.LENGTH_SHORT).show();
+            finish();
             return;
         }
-        //open bluetooth without a request dialog
-        BleManager.toggleBluetooth(true);
 
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
                 .scanPeriod(8000)
                 .scanDeviceName(null);
 
-        BleManager.ConnectOptions connectOptions = BleManager.ConnectOptions
+        BleManager.ConnectionOptions connectionOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectTimeout(12000);
+                .connectionPeriod(12000);
 
         manager = BleManager
                 .getInstance()
                 .setScanOptions(scanOptions)
-                .setConnectionOptions(connectOptions)
+                .setConnectionOptions(connectionOptions)
                 .setLog(true, "EasyBle")
                 .init(this.getApplication());
     }
@@ -105,37 +108,62 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.btn_scan:
-                if (!BleManager.isBluetoothOn()) {
-                    BleManager.toggleBluetooth(true);
-                }
-                //for most devices whose version is over Android6,scanning may need GPS permission
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
+            case R.id.btn_request_permission:
+                List<String> list = BleManager.getBleRequiredPermissions();
+                // Lower version devices may not require any permissions, so check it
+                if (list.size() <= 0){
                     return;
                 }
                 EasyPermissions
                         .with(this)
-                        .request(Manifest.permission.ACCESS_FINE_LOCATION)
-                        .autoRetryWhenUserRefuse(true, null)
-                        .result(new RequestExecutor.ResultReceiver() {
-                            @Override
-                            public void onPermissionsRequestResult(boolean grantAll, List<Permission> results) {
-                                if (grantAll) {
-                                    if (!manager.isScanning()) {
-                                        startScan();
-                                    }
-                                } else {
-                                    Toast.makeText(MainActivity.this,
-                                            getResources().getString(R.string.tips_go_setting_to_grant_location),
-                                            Toast.LENGTH_LONG).show();
-                                    EasyPermissions.goToSettingsActivity(MainActivity.this);
-                                }
+                        .request(list.toArray(new String[0]))
+                        .result((grantAll, results) -> {
+                            if (!grantAll) {
+                                Toast.makeText(MainActivity.this,
+                                        getString(R.string.tips_user_reject_permissions),
+                                        Toast.LENGTH_SHORT).show();
                             }
                         });
                 break;
+            case R.id.btn_enable_bluetooth:
+                if (!BleManager.allBlePermissionsGranted(this)) {
+                    Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (BleManager.isBluetoothOn()) {
+                    Toast.makeText(this, getString(R.string.tips_bluetooth_on), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                BleManager.enableBluetooth(this, REQUEST_CODE_ENABLE_BLUETOOTH);
+                break;
+            case R.id.btn_scan:
+                if (!BleManager.allBlePermissionsGranted(this)) {
+                    Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (!BleManager.isBluetoothOn()) {
+                    Toast.makeText(this, getString(R.string.tips_enable_bluetooth), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                //Android7 or higher, scanning may need GPS permission
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
+                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
+                }
+                if (!manager.isScanning()) {
+                    startScan();
+                }
+                break;
             default:
                 break;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_ENABLE_BLUETOOTH) {
+            Toast.makeText(this, getString(resultCode == RESULT_OK ?
+                    R.string.tips_bluetooth_on : R.string.tips_bluetooth_off), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -144,17 +172,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
                 for (BleDevice d : deviceList) {
-                    if (device.address.equals(d.address)) {
+                    if (device.getAddress().equals(d.getAddress())) {
                         return;
                     }
                 }
+
+                // If you want to save any extra info to BleDevice, you can do like the following.
+                // 1. First, create a class used to save extra info, whatever any name, but make
+                //    sure it implements the interface 'Parcelable'
+                // 2. Then, create an instance and put info you wanna save into it
+                // 3. Finally, call BleDevice#setParcelableExtra()
+                ExtraInfo extra = new ExtraInfo();
+                extra.setNote("test extra info: " + device.getName());
+                extra.setRssi(rssi);
+                extra.setScanRecordBytes(scanRecord);
+                device.setParcelableExtra(extra);
+
                 deviceList.add(device);
                 adapter.notifyDataSetChanged();
             }
 
             @Override
             public void onStart(boolean startScanSuccess, String info) {
-                Log.e(TAG, "start scan = " + startScanSuccess + "   info: " + info);
+                Logger.e("start scan = " + startScanSuccess + "   info: " + info);
                 if (startScanSuccess) {
                     deviceList.clear();
                     adapter.notifyDataSetChanged();
@@ -163,7 +203,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onFinish() {
-                Log.e(TAG, "scan finish");
+                Logger.e("scan finish");
             }
         });
     }

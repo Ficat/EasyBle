@@ -16,15 +16,15 @@ import android.os.ParcelUuid;
 import android.text.TextUtils;
 
 import com.ficat.easyble.BleDevice;
+import com.ficat.easyble.BleDeviceAccessor;
 import com.ficat.easyble.BleReceiver;
 import com.ficat.easyble.Logger;
 
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.BluetoothStateChangedListener {
+public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.BluetoothStateChangedListener {
     private static final int SCAN_PERIOD_DEFAULT = 12000;
 
     protected BluetoothAdapter mBluetoothAdapter;
@@ -37,102 +37,92 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     private String mDeviceAddress;
     private UUID[] mServiceUuids;
     private volatile boolean mScanning;
-    private Handler mHandler;
-    private BleReceiver mReceiver;
-    private Runnable mScanTimeoutRunnable = new Runnable() {
+    private final Handler mHandler;
+    private final BleReceiver mReceiver;
+    private final Runnable mScanTimeoutRunnable = new Runnable() {
         @Override
         public void run() {
             stopScan();
         }
     };
 
-    public BleScanner(BleReceiver bleReceiver) {
+    /**
+     * The key to obtain some objects, like BleDevice instance
+     */
+    private final AccessKey mAccessorKey = new AccessKey();
+
+    BleScanner(BleReceiver bleReceiver) {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mHandler = new Handler(Looper.getMainLooper());
         mReceiver = bleReceiver;
-        //register BluetoothStateChangedListener
+        // Register BluetoothStateChangedListener
         if (mReceiver != null) {
             mReceiver.registerBluetoothStateChangedListener(this);
         }
     }
 
     @Override
-    public synchronized void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress, UUID[] scanServiceUuids, final BleScanCallback callback) {
-        if (callback == null) {
-            throw new IllegalArgumentException("BleScanCallback is null");
-        }
-        if (mScanning) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    callback.onStart(false, "you can't start a new scan until the previous scan is over");
-                }
-            });
-            return;
-        }
-
-        mBleScanCallback = callback;
-        mDeviceName = scanDeviceName;
-        mDeviceAddress = scanDeviceAddress;
-        mServiceUuids = scanServiceUuids;
-
-        boolean scanStart;
-        if (sdkVersionLowerThan21()) {
-            scanStart = scanByOldApi();
-        } else {
-            scanStart = scanByNewApi();
-        }
-        if (scanStart) {
-            mScanning = true;
+    public void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress,
+                          UUID[] scanServiceUuids, final BleScanCallback callback) {
+        synchronized (this) {
+            if (mScanning) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onStart(false, "The previous scan has not ended yet");
+                    }
+                });
+                return;
+            }
+            mBleScanCallback = callback;
+            mDeviceName = scanDeviceName;
+            mDeviceAddress = scanDeviceAddress;
+            mServiceUuids = scanServiceUuids;
+            mScanning = sdkVersionLowerThan21() ? scanByOldApi() : scanByNewApi();
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
                     if (mBleScanCallback != null) {
-                        mBleScanCallback.onStart(true, "scan begin success");
+                        mBleScanCallback.onStart(mScanning, mScanning ? "Scan start" :
+                                "Failed to start scanning due to unknown reason");
                     }
                 }
             });
-            mHandler.postDelayed(mScanTimeoutRunnable, scanPeriod > 0 ? scanPeriod : SCAN_PERIOD_DEFAULT);
-        } else {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mBleScanCallback != null) {
-                        mBleScanCallback.onStart(false,
-                                "scan begin fail,bluetooth is closed or other unknown reason");
-                    }
-                }
-            });
+            if (mScanning) {
+                mHandler.postDelayed(mScanTimeoutRunnable, scanPeriod > 0 ? scanPeriod : SCAN_PERIOD_DEFAULT);
+            }
         }
     }
 
     @SuppressWarnings("NewApi")
     @Override
     public synchronized void stopScan() {
-        if (mBluetoothAdapter == null || !mScanning) {
-            return;
-        }
-        if (sdkVersionLowerThan21()) {
-            if (mLeScanCallback != null) {
-                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+        synchronized (this) {
+            if (mBluetoothAdapter == null || !mScanning) {
+                return;
             }
-        } else {
-            //if bluetooth is close, stopScan() will throw an exception
-            if (mBluetoothLeScanner != null && mBluetoothAdapter.isEnabled() && mScanCallback != null) {
-                mBluetoothLeScanner.stopScan(mScanCallback);
-            }
-        }
-        mScanning = false;
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mBleScanCallback != null) {
-                    mBleScanCallback.onFinish();
-                    mBleScanCallback = null;
+            if (sdkVersionLowerThan21()) {
+                if (mLeScanCallback != null) {
+                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                }
+            } else {
+                // If bluetooth is turned off, stopScan() will throw an exception
+                if (mBluetoothLeScanner != null && mBluetoothAdapter.isEnabled() && mScanCallback != null) {
+                    mBluetoothLeScanner.stopScan(mScanCallback);
                 }
             }
-        });
-        mHandler.removeCallbacks(mScanTimeoutRunnable);
+            mScanning = false;
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (mBleScanCallback != null) {
+                        mBleScanCallback.onFinish();
+                        mBleScanCallback = null;
+                    }
+                }
+            });
+            mHandler.removeCallbacks(mScanTimeoutRunnable);
+        }
     }
 
     @Override
@@ -150,9 +140,9 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
     @Override
     public void destroy() {
         stopScan();
-        //remove scan period delayed message
+        // Remove scan period delayed message
         mHandler.removeCallbacksAndMessages(null);
-        //unregister BluetoothStateChangedListener
+        // Unregister BluetoothStateChangedListener
         if (mReceiver != null) {
             mReceiver.unregisterBluetoothStateChangedListener(this);
         }
@@ -176,7 +166,8 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                                 return;
                             }
                             if (mBleScanCallback != null) {
-                                mBleScanCallback.onLeScan(newBleDevice(device), rssi, scanRecord);
+                                BleDevice bleDevice = BleDeviceAccessor.newBleDevice(device, mAccessorKey);
+                                mBleScanCallback.onLeScan(bleDevice, rssi, scanRecord);
                             }
                         }
                     });
@@ -188,7 +179,8 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private boolean scanByNewApi() {
-        //mBluetoothLeScanner will be null and startScan() will throw an exception if bluetooth isn't open
+        // BluetoothAdapter#getBluetoothLeScanner() will be null and BluetoothLeScanner#startScan()
+        // will throw an exception if bluetooth is turned off, so check it
         if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
             return false;
         }
@@ -200,10 +192,15 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (!hasResultByFilterUuids(result)) return;
-                            if (mBleScanCallback == null) return;
+                            if (!hasResultByFilterUuids(result)) {
+                                return;
+                            }
+                            if (mBleScanCallback == null) {
+                                return;
+                            }
                             byte[] scanRecord = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
-                            mBleScanCallback.onLeScan(newBleDevice(result.getDevice()), result.getRssi(), scanRecord);
+                            BleDevice bleDevice = BleDeviceAccessor.newBleDevice(result.getDevice(), mAccessorKey);
+                            mBleScanCallback.onLeScan(bleDevice, result.getRssi(), scanRecord);
                         }
                     });
                 }
@@ -221,7 +218,6 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
                 }
             };
         }
-        //note that getBluetoothLeScanner() will be null if bluetooth is closed
         if (mBluetoothLeScanner == null) {
             mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
         }
@@ -261,16 +257,9 @@ public class BleScanner implements BleScan<BleScanCallback>, BleReceiver.Bluetoo
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP;
     }
 
-    private BleDevice newBleDevice(BluetoothDevice device) {
-        Class<?> clasz = BleDevice.class;
-        try {
-            Constructor<?> constructor = clasz.getDeclaredConstructor(BluetoothDevice.class);
-            constructor.setAccessible(true);
-            BleDevice bleDevice = (BleDevice) constructor.newInstance(device);
-            return bleDevice;
-        } catch (Exception e) {
-            Logger.i("encounter an exception while creating a BleDevice object by reflection: " + e.getMessage());
-            return null;
+    public static final class AccessKey {
+        private AccessKey() {
+
         }
     }
 }

@@ -13,8 +13,12 @@ import java.util.List;
  * Created by pw on 2018/9/23.
  */
 
-public class BleReceiver extends BroadcastReceiver {
-    private List<BluetoothStateChangedListener> listeners = new ArrayList<>();
+public final class BleReceiver extends BroadcastReceiver {
+    private final List<BluetoothStateChangedListener> listeners = new ArrayList<>();
+
+    BleReceiver() {
+
+    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -33,20 +37,27 @@ public class BleReceiver extends BroadcastReceiver {
         }
     }
 
-    public synchronized void registerBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
-        checkNotNull(listener, BluetoothStateChangedListener.class);
-        listeners.add(listener);
+    public void registerBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
+        if (listener == null) {
+            throw new IllegalArgumentException("BluetoothStateChangedListener is null");
+        }
+        synchronized (this) {
+            listeners.add(listener);
+        }
     }
 
-    public synchronized void unregisterBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
-        checkNotNull(listener, BluetoothStateChangedListener.class);
-        listeners.remove(listener);
+    public void unregisterBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
+        if (listener == null) {
+            throw new IllegalArgumentException("BluetoothStateChangedListener is null");
+        }
+        synchronized (this) {
+            listeners.remove(listener);
+        }
     }
 
-    private void checkNotNull(Object object, Class<?> clasz) {
-        if (object == null) {
-            String claszSimpleName = clasz.getSimpleName();
-            throw new IllegalArgumentException(claszSimpleName + " is null");
+    public void clearAllListener() {
+        synchronized (this) {
+            listeners.clear();
         }
     }
 

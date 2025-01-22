@@ -5,8 +5,8 @@ import android.support.annotation.NonNull;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.ficat.easyble.gatt.bean.CharacteristicInfo;
-import com.ficat.easyble.gatt.bean.ServiceInfo;
+import com.ficat.easyble.gatt.data.CharacteristicInfo;
+import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.sample.R;
 
 import java.util.List;
@@ -21,25 +21,25 @@ public class DeviceServiceInfoAdapter extends CommonExpandableListAdapter<Servic
     @Override
     public void bindDataToGroup(ViewGroup viewGroup, ViewHolder holder, ServiceInfo groupData, int groupPosition, boolean isExpanded) {
         TextView tvServiceUuid= (TextView) holder.mViews.get(R.id.tv_service_uuid);
-        tvServiceUuid.setText(groupData.uuid);
+        tvServiceUuid.setText(groupData.getUuid().toString());
     }
 
     @Override
     public void bindDataToChild(ViewGroup viewGroup, ViewHolder holder, CharacteristicInfo childData, int groupPosition, int childPosition, boolean isLastChild) {
         TextView tvUuid = (TextView) holder.mViews.get(R.id.tv_characteristic_uuid);
         TextView tvAttribution = (TextView) holder.mViews.get(R.id.tv_characteristic_attribution);
-        tvUuid.setText(childData.uuid);
+        tvUuid.setText(childData.getUuid().toString());
         String attri="";
-        if (childData.notify){
+        if (childData.isNotifiable()){
             attri += "Notify  ";
         }
-        if (childData.indicative){
+        if (childData.isIndicative()){
             attri += "Indicate  ";
         }
-        if (childData.readable){
+        if (childData.isReadable()){
             attri += "Read ";
         }
-        if (childData.writable){
+        if (childData.isWritable()){
             attri += "Write ";
         }
         tvAttribution.setText(attri);

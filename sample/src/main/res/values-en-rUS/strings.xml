@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">EasyBle</string>
 
+    <string name="request_permissions">Request BLE Permission</string>
+    <string name="enable_bluetooth">Enable Bluetooth</string>
     <string name="start_scan">Scan</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
@@ -27,10 +29,17 @@
     <string name="write_result">write result</string>
     <string name="tips_current_operate_uuid">here is current operation uuid information</string>
     <string name="tips_write_operate_input">please enter a hex string</string>
-    <string name="tips_turn_on_gps">Please turn on GPS before scanning</string>
+    <string name="tips_turn_on_gps">You\'d better turn on GPS if this device provides</string>
     <string name="tips_go_setting_to_grant_location">Please go to settings to grant location permission manually</string>
-    <string name="tips_connect_timeout">connect timeout</string>
-    <string name="tips_connect_fail">connect fail</string>
+    <string name="tips_connection_timeout">connect timeout</string>
+    <string name="tips_connection_fail">connect fail</string>
+    <string name="tips_connection_canceled">connection canceled</string>
     <string name="tips_connection_disconnected">connection has disconnected</string>
     <string name="tips_write_operation">please enter a hex string</string>
+    <string name="tips_not_support_ble">This device not support BLE</string>
+    <string name="tips_user_reject_permissions">User rejected bluetooth permissions</string>
+    <string name="tips_bluetooth_on">Bluetooth turned on</string>
+    <string name="tips_bluetooth_off">Bluetooth turned off</string>
+    <string name="tips_request_ble_permissions">Please request ble permissions first</string>
+    <string name="tips_enable_bluetooth">Please enable bluetooth first</string>
 </resources>
