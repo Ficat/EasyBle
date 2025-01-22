@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
->由于个人原因不再维护1.0.x，请使用或升级到最新版本（2.0.x）
+>由于Android12起蓝牙权限等发生变化，故请使用或升级到最新版本（3.0.x）
 ## Gradle dependency
 ```gradle
 allprojects {
@@ -11,15 +11,14 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v2.0.2'
+    implementation 'com.github.Ficat:EasyBle:v3.0.0'
 }
 ```
 
 ## Usage
  本库主要通过BleManager类来进行BLE操作
-### 1.判断设备是否支持BLE并打开蓝牙.
-<br>
-[查看蓝牙所需权限详情](doc/README_MORE_CN.md)
+### 1.判断设备是否支持BLE并打开蓝牙.<br>
+[查看蓝牙所需权限详情](README_MORE_CN.md)
 ```java
         // 是否支持BLE
         BleManager.supportBle(context);
@@ -67,8 +66,8 @@ dependencies {
 ```
 
 ### 3.扫描
-安卓版本不小于6.0的，扫描需要BLE权限，因此扫描前确保所有BLE权限已被授予.<br>
- [如何使用BleDevice存储或携带额外信息](doc/README_MORE_CN.md).
+安卓版本不小于6.0的，扫描需要BLE权限，因此扫描前确保所有BLE权限已被授予.
+ [如何使用BleDevice存储或携带额外信息](README_MORE_CN.md).
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
@@ -102,8 +101,8 @@ dependencies {
 ```
 
 ### 4.连接
- 你可以使用BleDevice对象或mac地址连接设备<br>
- 默认情况下，所有操作回调（connect/notify/read/write/readRssi/setMtu等等）都将运行在主线程， 当然你可以选择其运行在子线程[如何选择一个线程来运行所有出扫描外的回调](doc/README_MORE_CN.md).
+ 你可以使用BleDevice对象或mac地址连接设备.默认情况下，所有操作回调（connect/notify/read/write/readRssi/setMtu等等）都将运行在主线程，
+ 当然你可以选择其运行在子线程[如何选择一个线程来运行所有出扫描外的回调](README_MORE_CN.md).
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {

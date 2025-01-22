@@ -1,6 +1,6 @@
 # EasyBle
-  EasyBle is a framework used for android BLE, this framework makes android Ble operation simpler and supports basic BLE operations, besides, it also support batch writing data and multi connection
->The version 1.0.x is no longer maintained , please use or update to the newest version(2.0.x)
+  EasyBle is a framework used for android BLE, it makes android Ble operation simpler and supports basic BLE operations
+>On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.0.x)
 
 [中文文档](doc/README_CN.md)
 
@@ -13,13 +13,13 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v2.0.2'
+    implementation 'com.github.Ficat:EasyBle:v3.0.0'
 }
 ```
 
 ## Usage
  The framework uses BleManager to manager BLE
-### 1.Check if the device supports BLE, request BLE required permissions and turn on bluetooth. <br>
+### 1.Check if the device supports BLE, request BLE required permissions and turn on bluetooth.<br>
 [See BLE permission details](doc/README_MORE.md)
 ```java
         // Check if the device supports BLE
@@ -71,7 +71,7 @@ dependencies {
 ```
 
 ### 3.Scan
-On API23+ or higher devices, scan requires some permissions, so ensure all BLE permissions have been granted. <br>
+On API23+ or higher devices, scan requires some permissions, so ensure all BLE permissions have been granted.
 [How to use BleDevice to carry extra info](doc/README_MORE.md).
 ```java
         bleManager.startScan(new BleScanCallback() {
@@ -108,8 +108,8 @@ Once target remote device has been discovered you can use stopScan() to stop sca
 ```
 
 ### 4.Connect
-You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.<br>
- By default, all operation(like connect/notify/read/write/setMtu/readRssi and so on) callbacks run in UI-Thread, but you can select a thread to run them[How to select a thread to run all operation callbacks](doc/README_MORE.md).
+You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.
+By default, all operation(like connect/notify/read/write/setMtu/readRssi and so on) callbacks run in UI-Thread, but you can select a thread to run them. [How to select a thread to run all operation callbacks](doc/README_MORE.md).
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
