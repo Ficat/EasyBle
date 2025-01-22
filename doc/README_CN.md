@@ -17,7 +17,9 @@ dependencies {
 
 ## Usage
  本库主要通过BleManager类来进行BLE操作
-### 1.判断设备是否支持BLE并打开蓝牙
+### 1.判断设备是否支持BLE并打开蓝牙.
+<br>
+[查看蓝牙所需权限详情](doc/README_MORE_CN.md)
 ```java
         // 是否支持BLE
         BleManager.supportBle(context);
@@ -65,7 +67,8 @@ dependencies {
 ```
 
 ### 3.扫描
-安卓版本不小于6.0的，扫描需要BLE权限，因此扫描前确保所有BLE权限已被授予
+安卓版本不小于6.0的，扫描需要BLE权限，因此扫描前确保所有BLE权限已被授予.<br>
+ [如何使用BleDevice存储或携带额外信息](doc/README_MORE_CN.md).
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
@@ -99,7 +102,8 @@ dependencies {
 ```
 
 ### 4.连接
-
+ 你可以使用BleDevice对象或mac地址连接设备<br>
+ 默认情况下，所有操作回调（connect/notify/read/write/readRssi/setMtu等等）都将运行在主线程， 当然你可以选择其运行在子线程[如何选择一个线程来运行所有出扫描外的回调](doc/README_MORE_CN.md).
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
