@@ -1,15 +1,13 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 34
+    compileSdk 34
 
 
 
     defaultConfig {
-        minSdkVersion 18
-        targetSdkVersion 33
-        versionCode 1
-        versionName "1.0"
+        minSdk 18
+        targetSdk 33
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
