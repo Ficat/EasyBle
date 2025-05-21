@@ -117,11 +117,15 @@ public final class BleGattImpl implements BleGatt {
         BluetoothGatt gatt;
 //        if (Build.VERSION.SDK_INT >= 26) {
 //            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator,
-//                    BluetoothDevice.TRANSPORT_AUTO, BluetoothDevice.PHY_LE_1M_MASK, communicator.mHandler);
+//                    BluetoothDevice.TRANSPORT_LE, BluetoothDevice.PHY_LE_1M_MASK, communicator.mHandler);
 //        } else {
 //            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator);
 //        }
-        gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && device.getBluetoothDevice().getType() == BluetoothDevice.DEVICE_TYPE_DUAL) {
+            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator, BluetoothDevice.TRANSPORT_LE);
+        } else {
+            gatt = device.getBluetoothDevice().connectGatt(mContext, false, communicator);
+        }
 
         // Failed to connect GATT
         if (gatt == null) {
@@ -757,11 +761,12 @@ public final class BleGattImpl implements BleGatt {
                     case BluetoothProfile.STATE_DISCONNECTED:
                         refreshDeviceCache();
                         gatt.close();
+                        int previousState = mDevice.getConnectionState();
                         setBleDeviceConnectionState(BleDevice.DISCONNECTED);
                         runOrQueueCallback(new Runnable() {
                             @Override
                             public void run() {
-                                if (callback != null) {
+                                if (callback != null && previousState != BleDevice.DISCONNECTED) {
                                     callback.onDisconnected("The connection has been disconnected", status, mDevice);
                                 }
                             }
@@ -809,19 +814,39 @@ public final class BleGattImpl implements BleGatt {
             if (mDevice == null || !address.equals(mDevice.getAddress())) {
                 return;
             }
-            if (status == BluetoothGatt.GATT_SUCCESS) {
+            // Remove connection timeout message
+            mHandler.removeCallbacksAndMessages(address);
+            boolean success = status == BluetoothGatt.GATT_SUCCESS;
+            // Add services
+            if (success) {
+                mServiceList.clear();
                 List<BluetoothGattService> gattServices = gatt.getServices();
                 for (BluetoothGattService service : gattServices) {
                     mServiceList.add(new ServiceInfo(service));
                 }
-                //Remove connection timeout message
-                mHandler.removeCallbacksAndMessages(address);
-                setBleDeviceConnectionState(BleDevice.CONNECTED);
+            }
+            // If connecting, notify connection state changed, otherwise return directly
+            if (!mDevice.isConnecting()) {
+                return;
+            }
+            setBleDeviceConnectionState(success ? BleDevice.CONNECTED : BleDevice.DISCONNECTED);
+            if (success) {
                 runOrQueueCallback(new Runnable() {
                     @Override
                     public void run() {
                         if (mConnectCallback != null) {
                             mConnectCallback.onConnected(mDevice);
+                        }
+                    }
+                });
+            } else {
+                // Disconnect current connection and do not call back BleConnectCallback#onDsiconnected()
+                gatt.disconnect();
+                runOrQueueCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (mConnectCallback != null) {
+                            mConnectCallback.onFailure(BleCallback.FAILURE_SERVICE_NOT_FOUND, "Failed to discovery services", mDevice);
                         }
                     }
                 });
