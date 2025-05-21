@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.0.1'
+    implementation 'com.github.Ficat:EasyBle:v3.0.3'
 }
 ```
 
