@@ -4,12 +4,11 @@
 
     <!-- 1.Android11(api30) or lower -->
     <!-- Request legacy Bluetooth permissions on older devices -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
+    <!-- Do not declare android:maxSdkVersion="30" in BLUETOOTH or BLUETOOTH_ADMIN. If add
+         it, when we depend this module and app target version <= 30, app will not have
+         BLUETOOTH/BLUETOOTH_ADMIN permissions. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
     <!-- 2.Android6 ~ Android11(api23~30) -->
     <!-- Android6 ~ 9(api23 ~ 28):  ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION -->
