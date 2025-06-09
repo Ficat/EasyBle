@@ -31,11 +31,13 @@
     <string name="tips_write_operate_input">please enter a hex string</string>
     <string name="tips_turn_on_gps">You\'d better turn on GPS if this device provides</string>
     <string name="tips_go_setting_to_grant_location">Please go to settings to grant location permission manually</string>
-    <string name="tips_connection_timeout">connect timeout</string>
-    <string name="tips_connection_fail">connect fail</string>
+    <string name="tips_connection_permissions_not_granted">No BLE connection permissions</string>
+    <string name="tips_connection_reach_max_num">Max connection num reached</string>
+    <string name="tips_connection_timeout">connection timed out</string>
+    <string name="tips_connection_fail">connection failed</string>
     <string name="tips_connection_canceled">connection canceled</string>
     <string name="tips_connection_disconnected">connection has disconnected</string>
-    <string name="tips_write_operation">please enter a hex string</string>
+    <string name="tips_write_operation">please input a hex string</string>
     <string name="tips_not_support_ble">This device not support BLE</string>
     <string name="tips_user_reject_permissions">User rejected bluetooth permissions</string>
     <string name="tips_bluetooth_on">Bluetooth turned on</string>

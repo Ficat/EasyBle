@@ -2,6 +2,7 @@ package com.ficat.sample.adapter;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 import android.util.SparseArray;
 import android.widget.TextView;
 
@@ -26,7 +27,8 @@ public class ScanDeviceAdapter extends CommonRecyclerViewAdapter<BleDevice> {
     public void bindDataToItem(CommonRecyclerViewAdapter.MyViewHolder holder, BleDevice data, int position) {
         TextView tvName = (TextView) holder.mViews.get(R.id.tv_name);
         TextView tvAddress = (TextView) holder.mViews.get(R.id.tv_address);
-        tvName.setText(data.getName());
+        String name = data.getName();
+        tvName.setText(TextUtils.isEmpty(name) ? "null" : name);
         tvAddress.setText(data.getAddress());
     }
 }

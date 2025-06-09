@@ -12,9 +12,7 @@ import static android.os.Build.VERSION.SDK_INT;
  * permission and the associated app op for this permission if
  * such is defined.
  * <p>
- * This PermissionChecker contents copy from
- * {@link android.support.v4.content.PermissionChecker}, because I
- * just don't wanna import support-package or androidx
+ * This contents copy from {@link android.support.v4.content.PermissionChecker}
  */
 public class PermissionChecker {
     /**

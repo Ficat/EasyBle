@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -15,9 +16,6 @@ import android.text.TextUtils;
 
 import com.ficat.easyble.gatt.BleGatt;
 import com.ficat.easyble.gatt.BleGattAccessor;
-import com.ficat.easyble.gatt.BleHandlerThread;
-import com.ficat.easyble.gatt.callback.BleCallback;
-import com.ficat.easyble.gatt.data.ServiceInfo;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
@@ -26,8 +24,9 @@ import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
 import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScan;
-import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easyble.scan.BleScanAccessor;
+import com.ficat.easyble.scan.BleScanCallback;
+import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.utils.PermissionChecker;
 
 import java.util.ArrayList;
@@ -42,11 +41,6 @@ public final class BleManager {
     private BleScan<BleScanCallback> mScan;
     private BleGatt mGatt;
     private BleReceiver mReceiver;
-
-    /**
-     * The key to obtain some objects, like BleGatt or BleScan instance
-     */
-    private AccessKey mAccessKey;
 
     private static volatile BleManager instance;
 
@@ -69,11 +63,8 @@ public final class BleManager {
         mContext = context;
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mReceiver = new BleReceiver();
-        if (mAccessKey == null) {
-            mAccessKey = new AccessKey();
-        }
-        mScan = BleScanAccessor.newBleScan(mReceiver, mAccessKey);
-        mGatt = BleGattAccessor.newBleGatt(mContext, mAccessKey);
+        mScan = BleScanAccessor.newBleScan(mReceiver, new AccessKey());
+        mGatt = BleGattAccessor.newBleGatt(new AccessKey());
         registerBleReceiver(mContext, mReceiver);
         return this;
     }
@@ -122,30 +113,13 @@ public final class BleManager {
         if (callback == null) {
             throw new IllegalArgumentException("BleScanCallback is null");
         }
-        if (!isBluetoothOn()) {
-            callback.onStart(false, "Bluetooth is not turned on");
-            return;
-        }
-        if (!scanPermissionGranted(mContext)) {
-            String permission;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { //Android12
-                permission = "BLUETOOTH_SCAN and BLUETOOTH_CONNECT";
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {//Android10
-                permission = "ACCESS_FINE_LOCATION";
-            } else {//Android6
-                permission = "ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION";
-            }
-            callback.onStart(false, "No scan permission(" + permission + ")");
-            return;
-        }
         if (options == null) {
             options = ScanOptions.newInstance();
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-            Logger.i("For this device,scanning may need GPS,you'd better turn on GPS to avoid that scanning doesn't work");
+            Logger.i("You'd better turn on GPS to avoid that scan doesn't work");
         }
-        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
-                options.scanServiceUuids, callback);
+        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress, options.scanServiceUuids, callback);
     }
 
     /**
@@ -163,27 +137,14 @@ public final class BleManager {
         connect(device, mConnectionOptions, callback);
     }
 
-    public void connect(BleDevice device, ConnectionOptions options, BleConnectCallback callback) {
-        connect(device, options, callback, null);
-    }
-
-    public void connect(BleDevice device, BleConnectCallback callback, BleHandlerThread bleHandlerThread) {
-        connect(device, mConnectionOptions, callback, bleHandlerThread);
-    }
-
     /**
      * Connect to the remote device
      *
-     * @param device           remote device
-     * @param options          connection options
-     * @param callback         connection callback
-     * @param bleHandlerThread thread used to run all {@link BleCallback} callbacks and it's
-     *                         subclass, like {@link BleConnectCallback} {@link BleMtuCallback}
-     *                         {@link BleNotifyCallback} {@link BleWriteCallback} and so on, if
-     *                         it is null, all callbacks will run in main thread.
+     * @param device   remote device
+     * @param options  connection options
+     * @param callback connection callback
      */
-    public void connect(BleDevice device, ConnectionOptions options, BleConnectCallback callback,
-                        BleHandlerThread bleHandlerThread) {
+    public void connect(BleDevice device, ConnectionOptions options, BleConnectCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
@@ -193,7 +154,7 @@ public final class BleManager {
         if (options == null) {
             options = ConnectionOptions.newInstance();
         }
-        mGatt.connect(options.connectionPeriod, device, callback, bleHandlerThread);
+        mGatt.connect(options.connectionPeriod, device, callback);
     }
 
     /**
@@ -204,20 +165,10 @@ public final class BleManager {
     }
 
     public void connect(String address, ConnectionOptions options, BleConnectCallback callback) {
-        connect(address, options, callback, null);
-    }
-
-    public void connect(String address, BleConnectCallback callback, BleHandlerThread bleHandlerThread) {
-        connect(address, mConnectionOptions, callback, bleHandlerThread);
-    }
-
-
-    public void connect(String address, ConnectionOptions options, BleConnectCallback callback,
-                        BleHandlerThread bleHandlerThread) {
         checkBluetoothAddress(address);
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         BleDevice bleDevice = new BleDevice(device);
-        connect(bleDevice, options, callback, bleHandlerThread);
+        connect(bleDevice, options, callback);
     }
 
     /**
@@ -260,7 +211,7 @@ public final class BleManager {
      *                    will call back onFailureure()
      * @param callback    notification callback
      */
-    public void notify(BleDevice device, String serviceUuid, String notifyUuid, BleNotifyCallback callback) {
+    public void notify(BleDevice device, UUID serviceUuid, UUID notifyUuid, BleNotifyCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
@@ -277,7 +228,7 @@ public final class BleManager {
      * @param serviceUuid        service uuid
      * @param characteristicUuid characteristic uuid you want to stop notifying or indicating
      */
-    public void cancelNotify(BleDevice device, String serviceUuid, String characteristicUuid) {
+    public void cancelNotify(BleDevice device, UUID serviceUuid, UUID characteristicUuid) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
@@ -294,7 +245,7 @@ public final class BleManager {
      * @param data        data
      * @param callback    result callback
      */
-    public void write(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
+    public void write(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] data,
                       BleWriteCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
@@ -302,10 +253,13 @@ public final class BleManager {
         if (callback == null) {
             throw new IllegalArgumentException("BleWriteCallback is null");
         }
+        if (data == null || data.length <= 0) {
+            throw new IllegalArgumentException("Data is null");
+        }
         mGatt.write(device, serviceUuid, writeUuid, data, callback);
     }
 
-    public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
+    public void writeByBatch(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] data,
                              int lengthPerPackage, BleWriteByBatchCallback callback) {
         writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, 0L, callback);
     }
@@ -323,13 +277,16 @@ public final class BleManager {
      * @param writeDelay       the interval of packages
      * @param callback         result callback
      */
-    public void writeByBatch(BleDevice device, String serviceUuid, String writeUuid, byte[] data,
+    public void writeByBatch(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] data,
                              int lengthPerPackage, long writeDelay, BleWriteByBatchCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
         if (callback == null) {
             throw new IllegalArgumentException("BleWriteByBatchCallback is null");
+        }
+        if (data == null || data.length <= 0) {
+            throw new IllegalArgumentException("Data is null");
         }
         mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerPackage, writeDelay, callback);
     }
@@ -343,7 +300,7 @@ public final class BleManager {
      *                    must be readable, or it will call back onFailure()
      * @param callback    the read callback
      */
-    public void read(BleDevice device, String serviceUuid, String readUuid, BleReadCallback callback) {
+    public void read(BleDevice device, UUID serviceUuid, UUID readUuid, BleReadCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
@@ -386,22 +343,19 @@ public final class BleManager {
         mGatt.setMtu(device, mtu, callback);
     }
 
-    public List<ServiceInfo> getDeviceServices(BleDevice device) {
-        if (device == null) {
-            throw new IllegalArgumentException("BleDevice is null");
-        }
-        return getDeviceServices(device.getAddress());
-    }
-
     /**
      * Get service information which the remote device supports.
      * Note that this method will return null if this device is not connected
      *
      * @return service information
      */
-    public List<ServiceInfo> getDeviceServices(String address) {
+    public List<BluetoothGattService> getDeviceServices(String address) {
         checkBluetoothAddress(address);
-        return mGatt.getDeviceServices(address);
+        BluetoothGatt bluetoothGatt = mGatt.getBluetoothGatt(address);
+        if (bluetoothGatt != null) {
+            return bluetoothGatt.getServices();
+        }
+        return null;
     }
 
     /**
@@ -457,7 +411,6 @@ public final class BleManager {
         mConnectionOptions = null;
         mReceiver = null;
         mContext = null;
-        mAccessKey = null;
     }
 
     /**
@@ -476,7 +429,7 @@ public final class BleManager {
      * to grant or reject,so you can get the result from Activity#onActivityResult().
      * <p>
      * Note that if on Android12(api31) or higher devices, only the permission
-     * {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
+     * {@link Manifest.permission#BLUETOOTH_CONNECT} has been granted by user,
      * calling this method can work, or it will return false directly.
      *
      * @param activity    activity, you can receive request result in onActivityResult() of
@@ -510,7 +463,7 @@ public final class BleManager {
      * Turn on or off local bluetooth directly without showing users a request
      * dialog. Like {@link #enableBluetooth(Activity, int)}, if current version
      * is Android12(api31) or higher, before calling this method, make sure the
-     * permission {@link android.Manifest.permission#BLUETOOTH_CONNECT} has been
+     * permission {@link Manifest.permission#BLUETOOTH_CONNECT} has been
      * granted by user.
      * <p>
      * Note that a request dialog may still show when you call this method, due to
@@ -623,6 +576,15 @@ public final class BleManager {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || PermissionChecker.isPermissionGranted(context, Manifest.permission.BLUETOOTH_CONNECT);
     }
 
+    /**
+     * Get valid MTU range array, the first is min value, and the second is max value.
+     *
+     * @return MTU range array
+     */
+    public static int[] getValidMtuRange() {
+        return new int[]{BleGatt.MTU_MIN, BleGatt.MTU_MAX};
+    }
+
     public ScanOptions getScanOptions() {
         return mScanOptions == null ? ScanOptions.newInstance() : mScanOptions;
     }
@@ -640,6 +602,10 @@ public final class BleManager {
     public BluetoothGatt getBluetoothGatt(String address) {
         checkBluetoothAddress(address);
         return mGatt.getBluetoothGatt(address);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     private void registerBleReceiver(Context context, BleReceiver receiver) {
@@ -668,7 +634,7 @@ public final class BleManager {
 
     private boolean isGpsOn() {
         if (mContext == null) {
-            return false;
+            throw new IllegalStateException("BleManager not initialized");
         }
         LocationManager locationManager
                 = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);

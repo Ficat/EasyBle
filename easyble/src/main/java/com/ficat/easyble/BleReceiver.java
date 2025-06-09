@@ -23,17 +23,15 @@ public final class BleReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if (TextUtils.isEmpty(action)) {
+        if (TextUtils.isEmpty(action) || !action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
             return;
         }
-        switch (action) {
-            case BluetoothAdapter.ACTION_STATE_CHANGED:
-                for (BluetoothStateChangedListener l : listeners) {
-                    if (l != null) {
-                        l.onBluetoothStateChanged();
-                    }
+        synchronized (this) {
+            for (BluetoothStateChangedListener l : listeners) {
+                if (l != null) {
+                    l.onBluetoothStateChanged();
                 }
-                break;
+            }
         }
     }
 

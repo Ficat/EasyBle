@@ -1,10 +1,10 @@
-package com.ficat.easyble;
+package com.ficat.easyble.utils;
 
 import android.util.Log;
 
 public class Logger {
-    static boolean SHOW_LOG = false;
-    static String TAG = "EasyBle";
+    public static boolean SHOW_LOG = false;
+    public static String TAG = "EasyBle";
 
     public static void d(String info) {
         if (SHOW_LOG) {

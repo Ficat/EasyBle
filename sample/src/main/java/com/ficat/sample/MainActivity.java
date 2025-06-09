@@ -17,7 +17,7 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
-import com.ficat.easyble.Logger;
+import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.scan.BleScanCallback;
 import com.ficat.easypermissions.EasyPermissions;
 import com.ficat.sample.adapter.ScanDeviceAdapter;
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btn_request_permission:
                 List<String> list = BleManager.getBleRequiredPermissions();
                 // Lower version devices may not require any permissions, so check it
-                if (list.size() <= 0){
+                if (list.size() <= 0) {
                     return;
                 }
                 EasyPermissions
@@ -170,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void startScan() {
         manager.startScan(new BleScanCallback() {
             @Override
-            public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
+            public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 for (BleDevice d : deviceList) {
                     if (device.getAddress().equals(d.getAddress())) {
                         return;
@@ -188,22 +188,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 extra.setScanRecordBytes(scanRecord);
                 device.setParcelableExtra(extra);
 
+                int pos = deviceList.size();
                 deviceList.add(device);
+                adapter.notifyItemInserted(pos);
+            }
+
+            @Override
+            public void onScanStarted() {
+                Logger.d("onScanStarted");
+                deviceList.clear();
                 adapter.notifyDataSetChanged();
             }
 
             @Override
-            public void onStart(boolean startScanSuccess, String info) {
-                Logger.e("start scan = " + startScanSuccess + "   info: " + info);
-                if (startScanSuccess) {
-                    deviceList.clear();
-                    adapter.notifyDataSetChanged();
-                }
+            public void onScanFinished() {
+                Logger.d("onScanFinished");
             }
 
             @Override
-            public void onFinish() {
-                Logger.e("scan finish");
+            public void onScanFailed(int code) {
+                Logger.d("onScanFailed   code=" + code);
             }
         });
     }

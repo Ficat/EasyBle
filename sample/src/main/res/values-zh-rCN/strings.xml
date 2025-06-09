@@ -31,6 +31,8 @@
     <string name="tips_write_operate_input">请输入十六进制字符串命令</string>
     <string name="tips_turn_on_gps">若设备提供GPS等定位服务请打开</string>
     <string name="tips_go_setting_to_grant_location">请前往设置界面手动授予定位权限</string>
+    <string name="tips_connection_permissions_not_granted">无蓝牙连接权限</string>
+    <string name="tips_connection_reach_max_num">已达最大连接数</string>
     <string name="tips_connection_timeout">连接超时</string>
     <string name="tips_connection_fail">连接失败</string>
     <string name="tips_connection_canceled">连接已取消</string>

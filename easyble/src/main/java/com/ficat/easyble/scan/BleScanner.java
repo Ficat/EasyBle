@@ -17,8 +17,9 @@ import android.text.TextUtils;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleDeviceAccessor;
+import com.ficat.easyble.BleManager;
 import com.ficat.easyble.BleReceiver;
-import com.ficat.easyble.Logger;
+import com.ficat.easyble.utils.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,14 +65,17 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
     @Override
     public void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress,
                           UUID[] scanServiceUuids, final BleScanCallback callback) {
+        if (!BleManager.isBluetoothOn()) {
+            callback.onScanFailed(BleScanCallback.BLUETOOTH_OFF);
+            return;
+        }
+        if (!BleManager.scanPermissionGranted(BleManager.getInstance().getContext())) {
+            callback.onScanFailed(BleScanCallback.SCAN_PERMISSION_NOT_GRANTED);
+            return;
+        }
         synchronized (this) {
             if (mScanning) {
-                mHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        callback.onStart(false, "The previous scan has not ended yet");
-                    }
-                });
+                callback.onScanFailed(BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED);
                 return;
             }
             mBleScanCallback = callback;
@@ -79,15 +83,13 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
             mDeviceAddress = scanDeviceAddress;
             mServiceUuids = scanServiceUuids;
             mScanning = sdkVersionLowerThan21() ? scanByOldApi() : scanByNewApi();
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mBleScanCallback != null) {
-                        mBleScanCallback.onStart(mScanning, mScanning ? "Scan start" :
-                                "Failed to start scanning due to unknown reason");
-                    }
+            if (mBleScanCallback != null) {
+                if (mScanning) {
+                    mBleScanCallback.onScanStarted();
+                } else {
+                    mBleScanCallback.onScanFailed(BleScanCallback.SCAN_FAILED);
                 }
-            });
+            }
             if (mScanning) {
                 mHandler.postDelayed(mScanTimeoutRunnable, scanPeriod > 0 ? scanPeriod : SCAN_PERIOD_DEFAULT);
             }
@@ -112,15 +114,10 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
                 }
             }
             mScanning = false;
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mBleScanCallback != null) {
-                        mBleScanCallback.onFinish();
-                        mBleScanCallback = null;
-                    }
-                }
-            });
+            if (mBleScanCallback != null) {
+                mBleScanCallback.onScanFinished();
+                mBleScanCallback = null;
+            }
             mHandler.removeCallbacks(mScanTimeoutRunnable);
         }
     }
@@ -156,21 +153,16 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
             mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
                 @Override
                 public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!TextUtils.isEmpty(mDeviceName) && !mDeviceName.equals(device.getName())) {
-                                return;
-                            }
-                            if (!TextUtils.isEmpty(mDeviceAddress) && !mDeviceAddress.equals(device.getAddress())) {
-                                return;
-                            }
-                            if (mBleScanCallback != null) {
-                                BleDevice bleDevice = BleDeviceAccessor.newBleDevice(device, mAccessorKey);
-                                mBleScanCallback.onLeScan(bleDevice, rssi, scanRecord);
-                            }
-                        }
-                    });
+                    if (!TextUtils.isEmpty(mDeviceName) && !mDeviceName.equals(device.getName())) {
+                        return;
+                    }
+                    if (!TextUtils.isEmpty(mDeviceAddress) && !mDeviceAddress.equals(device.getAddress())) {
+                        return;
+                    }
+                    if (mBleScanCallback != null) {
+                        BleDevice bleDevice = BleDeviceAccessor.newBleDevice(device, mAccessorKey);
+                        mBleScanCallback.onScanning(bleDevice, rssi, scanRecord);
+                    }
                 }
             };
         }
@@ -189,20 +181,15 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
                 @Override
                 public void onScanResult(int callbackType, final ScanResult result) {
                     super.onScanResult(callbackType, result);
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (!hasResultByFilterUuids(result)) {
-                                return;
-                            }
-                            if (mBleScanCallback == null) {
-                                return;
-                            }
-                            byte[] scanRecord = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
-                            BleDevice bleDevice = BleDeviceAccessor.newBleDevice(result.getDevice(), mAccessorKey);
-                            mBleScanCallback.onLeScan(bleDevice, result.getRssi(), scanRecord);
-                        }
-                    });
+                    if (!hasResultByFilterUuids(result)) {
+                        return;
+                    }
+                    if (mBleScanCallback == null) {
+                        return;
+                    }
+                    byte[] scanRecord = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
+                    BleDevice bleDevice = BleDeviceAccessor.newBleDevice(result.getDevice(), mAccessorKey);
+                    mBleScanCallback.onScanning(bleDevice, result.getRssi(), scanRecord);
                 }
 
                 @Override

@@ -3,7 +3,7 @@ package com.ficat.easyble.utils;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class SplitBleDataUtils {
+public class BleDataUtils {
     public static Queue<byte[]> getBatchData(byte[] originalData, int lengthPerPackage) {
         Queue<byte[]> batchData = new LinkedList<>();
         int packageNumber = (originalData.length % lengthPerPackage == 0) ?
