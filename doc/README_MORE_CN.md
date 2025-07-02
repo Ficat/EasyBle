@@ -29,12 +29,3 @@
            ExtraInfo e = (ExtraInfo) p;
        }
 ```
-
-### 3.如何选择一个线程来运行除BleScanCallback外的所有操作（如connect/notify/read/write等）的Callback
-```java
-       // 在创建一个BleHandlerThread对象后，你可以选择调用或不调用BleHandlerThread#start()。若你不调用，则该方法
-       // 会被自动调用。 在连接失败或连接断开后，BleHandlerThread#quitLooperSafely()也会被自动调用。所以你不必
-       // 调用其他方法(如#getLooper()、#quit()或quitSafety())去停止线程，这些方法在BleHandlerThread都已被废弃
-       // 即使你调用了它们也不产生效果，因此你只需要创建一个BleHandlerThread对象然后传到BleManager#connect()即可
-       BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
-```

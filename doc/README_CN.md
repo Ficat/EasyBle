@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.0.3'
+    implementation 'com.github.Ficat:EasyBle:v3.1.0'
 }
 ```
 
@@ -54,7 +54,7 @@ dependencies {
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectTimeout(12000);
+                .connectionPeriod(12000);
 
         BleManager manager = BleManager
                 .getInstance()
@@ -71,24 +71,37 @@ dependencies {
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
-            public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
+            public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 String name = device.getName();
                 String address = device.getAddress();
             }
 
             @Override
-            public void onStart(boolean startScanSuccess, String info) {
-                if (startScanSuccess) {
-                    // 开始扫描成功
-                } else {
-                    // 未能成功开始扫描，可通过info查看详情
-                    String failReason = info;
-                }
+            public void onScanStarted() {
+
             }
 
             @Override
-            public void onFinish() {
-               
+            public void onScanFinished() {
+
+            }
+
+            @Override
+            public void onScanFailed(int code) {
+                switch (code) {
+                    case BleScanCallback.BLUETOOTH_OFF:
+                        // 蓝牙已关闭
+                        break;
+                    case BleScanCallback.SCAN_PERMISSION_NOT_GRANTED:
+                        // 扫描权限未授予
+                        break;
+                    case BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED:
+                        // 上次扫描尚未完成
+                        break;
+                    case BleScanCallback.SCAN_FAILED:
+                        // 未知原因
+                        break;
+                }
             }
         });
 
@@ -101,46 +114,49 @@ dependencies {
 ```
 
 ### 4.连接
- 你可以使用BleDevice对象或mac地址连接设备.默认情况下，所有操作回调（connect/notify/read/write/readRssi/setMtu等等）都将运行在主线程，
- 当然你可以选择其运行在子线程[如何选择一个线程来运行所有出扫描外的回调](README_MORE_CN.md).
+ 你可以使用BleDevice对象或mac地址连接设备
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
             @Override
-            public void onStart(boolean startSuccess, String info, BleDevice device) {
-                if (startSuccess) {
-                    // 连接成功开始
-                } else {
-                    // 连接未能成功开始，可通过info查看详情
-                }
-            }
+            public void onConnectionStarted(BleDevice device) {
 
-            @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_TIMEOUT:
-                        // 连接超时
-                        break;
-                    case BleCallback.FAILURE_CONNECTION_CANCELED:
-                        // 连接被取消,发生于连接正在进行中，但我们手动调用disconnect()或disconnectAll()。
-                        break;
-                    case BleCallback.FAILURE_CONNECTION_FAILED:
-                        // 连接失败
-                        break;
-                    default:
-                        // 其他原因
-                        break;
-                }
             }
 
             @Override
             public void onConnected(BleDevice device) {
-                // 连接成功
+
             }
 
             @Override
-            public void onDisconnected(String info, int status, BleDevice device) {
-                // 连接断开
+            public void onDisconnected(BleDevice device, int gattOperationStatus) {
+
+            }
+
+            @Override
+            public void onConnectionFailed(int errCode, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.BLUETOOTH_OFF:
+                        // 蓝牙已关闭
+                        break;
+                    case BleErrorCodes.CONNECTION_PERMISSION_NOT_GRANTED:
+                        // 连接权限未授予
+                        break;
+                    case BleErrorCodes.CONNECTION_REACH_MAX_NUM:
+                        // 已达到最大连接数
+                        break;
+                    case BleErrorCodes.CONNECTION_TIMEOUT:
+                        // 连接超时
+                        break;
+                    case BleErrorCodes.CONNECTION_CANCELED:
+                        // 连接已取消
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // 未知原因
+                        break
+                    default:
+                        break;
+                }
             }
         };
 
@@ -150,9 +166,7 @@ dependencies {
        bleManager.connect(address, bleConnectCallback);
 
        // 第二个参数:   选择一个指定的连接选项
-       // 最后一个参数:  选择一个线程去运行所有回调，比如connect/notify/read/write等，若该参数为null, 所有回调将
-       //              运行在主线程（默认就是null）
-       bleManager.connect(bleDevice, connectionOptions, connectCallback, new BleHandlerThread("BleThread"));
+       bleManager.connect(bleDevice, connectionOptions, connectCallback);
 
 ```
 
@@ -174,35 +188,34 @@ notify和indicate都使用以下方法
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
-            public void onCharacteristicChanged(byte[] data, BleDevice device) {
-              
-            }
-            
-            @Override
-            public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
+            public void onCharacteristicChanged(byte[] receivedData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+            public void onNotifySuccess(UUID characteristicUuid, BleDevice device) {
+
+            }
+
+            @Override
+            public void onNotifyFailed(int errorCode, UUID characteristicUuid, BleDevice device) {
+                switch (errorCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
                         // 连接尚未建立或连接已断开
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // 未找到服务
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // 在指定服务中未找到指定的特征
                         break;
-                    case BleCallback.FAILURE_NOTIFICATION_OR_INDICATION_UNSUPPORTED:
-                        // 该特征不支持notify或indicate
+                    case BleErrorCodes.NOTIFICATION_OR_INDICATION_UNSUPPORTED:
+                        // 特征不支持notify或indicate
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // 其他原因
+                    case BleErrorCodes.UNKNOWN:
+                        // 未知原因
                         break;
                 }
-
             }
         });
 ```
@@ -215,27 +228,30 @@ notify和indicate都使用以下方法
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
-            public void onWriteSuccess(byte[] data, BleDevice device) {
+            public void onWriteSuccess(byte[] data, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+            public void onWriteFailed(int errCode, byte[] data, UUID characteristicUuid, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
                         // 连接尚未建立或连接已断开
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // 未找到服务
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // 在指定服务中未找到指定的特征
                         break;
-                    case BleCallback.FAILURE_WRITE_UNSUPPORTED:
+                    case BleErrorCodes.WRITE_UNSUPPORTED:
                         // 特征不支持写入操作
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // 其他原因 (比如数据长度无效等, 可通过info查看详情).
+                    case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
+                        // 数据长度超MTU长度
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // 未知原因
                         break;
                 }
             }
@@ -245,27 +261,35 @@ notify和indicate都使用以下方法
 ```java
        bleManager.writeByBatch(bleDevice, serviceUuid, writeUuid, data, lengthPerPackage, new  BleWriteByBatchCallback() {
             @Override
-            public void writeByBatchSuccess(byte[] data, BleDevice device) {
+            public void onWriteBatchSuccess(byte[] originalData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+            public void onWriteBatchProgress(float progress, UUID characteristicUuid, BleDevice device) {
+
+            }
+
+            @Override
+            public void onWriteBatchFailed(int errCode, int writtenLength, byte[] originalData, UUID characteristicUuid, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
                         // 连接尚未建立或连接已断开
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // 未找到服务
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // 在指定服务中未找到指定的特征
                         break;
-                    case BleCallback.FAILURE_WRITE_UNSUPPORTED:
+                    case BleErrorCodes.WRITE_UNSUPPORTED:
                         // 特征不支持写入操作
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // 其他原因 (比如数据长度无效、每包数据长度无效等, 可通过info查看详情).
+                    case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
+                        // 数据长度(此处特指参数中的每包长度，即lengthPerPackage)超MTU长度
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // 未知原因
                         break;
                 }
             }
@@ -276,27 +300,27 @@ notify和indicate都使用以下方法
 ```java
        bleManager.read(bleDevice, serviceUuid, writeUuid, data, new BleReadCallback() {
             @Override
-            public void onReadSuccess(byte[] data, BleDevice device) {
+            public void onReadSuccess(byte[] readData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
+            public void onReadFailed(int errorCode, UUID characteristicUuid, BleDevice device) {
+                switch (errorCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
                         // 连接尚未建立或连接已断开
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // 未找到服务
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // 在指定服务中未找到指定的特征
                         break;
-                    case BleCallback.FAILURE_READ_UNSUPPORTED:
+                    case BleErrorCodes.READ_UNSUPPORTED:
                         // 特征不支持读操作
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // 其他原因
+                    case BleErrorCodes.UNKNOWN:
+                        // 未知原因
                         break;
                 }
             }
@@ -319,10 +343,11 @@ notify和indicate都使用以下方法
 |isConnected(String address)|是否已连接到指定mac的设备|
 |isConnecting(String address)|是否正在与指定设备进行连接|
 |getConnectedDevices()|获取已连接设备列表|
-|getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null，该方法得到一个**List<ServiceInfo>**<br>ServiceInfo: 包含服务UUID以及CharacteristicInfo信息.|
+|getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null|
 |*supportBle(Context context)*|设备是否支持BLE|
 |*isBluetoothOn()*|蓝牙是否已打开|
 |*isAddressValid(String address)*|是否为合法的mac地址|
+|*getValidMtuRange()*|获取有效的MTU范围，返回int数组，数组长度为2，分别为MTU最小值、MTU最大值|
 |*getBleRequiredPermissions()*|获取所有BLE所需权限，低版本可能无需任何权限，因此不要忘记检查permissionList长度|
 |*allBlePermissionsGranted(Context context)*|检查是否所有BLE权限已被授予|
 |*scanPermissionGranted(Context context)*|检查是否扫描权限已被授予|

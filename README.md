@@ -13,7 +13,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.0.3'
+    implementation 'com.github.Ficat:EasyBle:v3.1.0'
 }
 ```
 
@@ -59,7 +59,7 @@ dependencies {
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectTimeout(12000);
+                .connectionPeriod(12000);
 
         BleManager bleManager = BleManager
                         .getInstance()
@@ -76,24 +76,37 @@ On API23+ or higher devices, scan requires some permissions, so ensure all BLE p
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
-            public void onLeScan(BleDevice device, int rssi, byte[] scanRecord) {
+            public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 String name = device.getName();
                 String address = device.getAddress();
             }
 
             @Override
-            public void onStart(boolean startScanSuccess, String info) {
-                if (startScanSuccess) {
-                    // Start scan successfully
-                } else {
-                    // Fail to start scan, you can see details from 'info'
-                    String failReason = info;
-                }
+            public void onScanStarted() {
+
             }
 
             @Override
-            public void onFinish() {
-               
+            public void onScanFinished() {
+
+            }
+
+            @Override
+            public void onScanFailed(int code) {
+                switch (code) {
+                    case BleScanCallback.BLUETOOTH_OFF:
+                        // Bluetooth turned off
+                        break;
+                    case BleScanCallback.SCAN_PERMISSION_NOT_GRANTED:
+                        // Scan permissions not granted
+                        break;
+                    case BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED:
+                        // Previous scan not finished
+                        break;
+                    case BleScanCallback.SCAN_FAILED:
+                        // Failed to start scan because of unknown reason
+                        break;
+                }
             }
         });
 
@@ -109,46 +122,48 @@ Once target remote device has been discovered you can use stopScan() to stop sca
 
 ### 4.Connect
 You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.
-By default, all operation(like connect/notify/read/write/setMtu/readRssi and so on) callbacks run in UI-Thread, but you can select a thread to run them. [How to select a thread to run all operation callbacks](doc/README_MORE.md).
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
             @Override
-            public void onStart(boolean startSuccess, String info, BleDevice device) {
-                if (startSuccess) {
-                    // Start to connect successfully
-                } else {
-                    // Fail to start connection, see details from 'info'
-                }
-            }
+            public void onConnectionStarted(BleDevice device) {
 
-            @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_TIMEOUT:
-                        // Connection timed out
-                        break;
-                    case BleCallback.FAILURE_CONNECTION_CANCELED:
-                        // Connection canceled. Occurred when a connection is in progress,
-                        // but you call disconnect() or disconnectAll().
-                        break;
-                    case BleCallback.FAILURE_CONNECTION_FAILED:
-                        // Connection failed
-                        break;
-                    default:
-                        // Other reason
-                        break;
-                }
             }
 
             @Override
             public void onConnected(BleDevice device) {
-                // Connection established
+
             }
 
             @Override
-            public void onDisconnected(String info, int status, BleDevice device) {
+            public void onDisconnected(BleDevice device, int gattOperationStatus) {
 
+            }
+
+            @Override
+            public void onConnectionFailed(int errCode, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.BLUETOOTH_OFF:
+                        // Bluetooth turned off
+                        break;
+                    case BleErrorCodes.CONNECTION_PERMISSION_NOT_GRANTED:
+                        // Connection permissions not granted
+                        break;
+                    case BleErrorCodes.CONNECTION_REACH_MAX_NUM:
+                        // Max connection num reached
+                        break;
+                    case BleErrorCodes.CONNECTION_TIMEOUT:
+                        // Connection timed out
+                        break;
+                    case BleErrorCodes.CONNECTION_CANCELED:
+                        // Connection canceled
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // Unknown
+                        break
+                    default:
+                        break;
+                }
             }
         };
 
@@ -158,9 +173,7 @@ By default, all operation(like connect/notify/read/write/setMtu/readRssi and so 
        bleManager.connect(address, bleConnectCallback);
 
        // Second param:  Select a specified connection option
-       // Last param:    Select a thread to run all operation callbacks, like connect/notify/read/write
-       //                and so on. If it's null, all callbacks will run in UI-Thread (By default, it's null)
-       bleManager.connect(bleDevice, connectionOptions, connectCallback, new BleHandlerThread("BleThread"));
+       bleManager.connect(bleDevice, connectionOptions, connectCallback);
 ```
 
 Call one of the following methods to disconnect from remote device
@@ -182,32 +195,32 @@ Both notification and indication use the following method to set notification or
 ```java
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
-            public void onCharacteristicChanged(byte[] data, BleDevice device) {
-              
-            }
-
-            @Override
-            public void onNotifySuccess(String notifySuccessUuid, BleDevice device) {
+            public void onCharacteristicChanged(byte[] receivedData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
-                        // Connection is not established yet, or disconnected from the remote device
+            public void onNotifySuccess(UUID characteristicUuid, BleDevice device) {
+
+            }
+
+            @Override
+            public void onNotifyFailed(int errorCode, UUID characteristicUuid, BleDevice device) {
+                switch (errorCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
+                        // Connection not established yet
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // Service not found in the remote device
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // Characteristic not found in specified service
                         break;
-                    case BleCallback.FAILURE_NOTIFICATION_OR_INDICATION_UNSUPPORTED:
+                    case BleErrorCodes.NOTIFICATION_OR_INDICATION_UNSUPPORTED:
                         // Characteristic not support notification or indication
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // Other reason
+                    case BleErrorCodes.UNKNOWN:
+                        // Unknown
                         break;
                 }
             }
@@ -222,27 +235,30 @@ Call cancelNotify() to cancel notification or indication
 ```java
        bleManager.write(bleDevice, serviceUuid, writeUuid, data, new BleWriteCallback() {
             @Override
-            public void onWriteSuccess(byte[] data, BleDevice device) {
+            public void onWriteSuccess(byte[] data, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
-                        // Connection is not established yet, or disconnected from the remote device
+            public void onWriteFailed(int errCode, byte[] data, UUID characteristicUuid, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
+                        // Connection not established yet
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // Service not found in the remote device
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // Characteristic not found in specified service
                         break;
-                    case BleCallback.FAILURE_WRITE_UNSUPPORTED:
+                    case BleErrorCodes.WRITE_UNSUPPORTED:
                         // Characteristic not support writing
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // Other reason (like invalid data length and so on, see 'info').
+                    case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
+                        // Data length is greater than MTU
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // Unknown
                         break;
                 }
             }
@@ -253,27 +269,35 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
 ```java
        bleManager.writeByBatch(bleDevice, serviceUuid, writeUuid, data, lengthPerPackage, new  BleWriteByBatchCallback() {
             @Override
-            public void writeByBatchSuccess(byte[] data, BleDevice device) {
+            public void onWriteBatchSuccess(byte[] originalData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
-                        // Connection is not established yet, or disconnected from the remote device
+            public void onWriteBatchProgress(float progress, UUID characteristicUuid, BleDevice device) {
+
+            }
+
+            @Override
+            public void onWriteBatchFailed(int errCode, int writtenLength, byte[] originalData, UUID characteristicUuid, BleDevice device) {
+                switch (errCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
+                        // Connection not established yet
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // Service not found in the remote device
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // Characteristic not found in specified service
                         break;
-                    case BleCallback.FAILURE_WRITE_UNSUPPORTED:
+                    case BleErrorCodes.WRITE_UNSUPPORTED:
                         // Characteristic not support writing
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // Other reason (like invalid data length, or invalid package length and so on).
+                    case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
+                        // Data length(lengthPerPackage) is greater than MTU
+                        break;
+                    case BleErrorCodes.UNKNOWN:
+                        // Unknown
                         break;
                 }
             }
@@ -284,27 +308,27 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
 ```java
        bleManager.read(bleDevice, serviceUuid, writeUuid, data, new BleReadCallback() {
             @Override
-            public void onReadSuccess(byte[] data, BleDevice device) {
+            public void onReadSuccess(byte[] readData, UUID characteristicUuid, BleDevice device) {
 
             }
 
             @Override
-            public void onFailure(int failureCode, String info, BleDevice device) {
-                switch (failureCode) {
-                    case BleCallback.FAILURE_CONNECTION_NOT_ESTABLISHED:
-                        // Connection is not established yet, or disconnected from the remote device
+            public void onReadFailed(int errorCode, UUID characteristicUuid, BleDevice device) {
+                switch (errorCode) {
+                    case BleErrorCodes.CONNECTION_NOT_ESTABLISHED:
+                        // Connection not established yet
                         break;
-                    case BleCallback.FAILURE_SERVICE_NOT_FOUND:
+                    case BleErrorCodes.SERVICE_NOT_FOUND:
                         // Service not found in the remote device
                         break;
-                    case BleCallback.FAILURE_CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
+                    case BleErrorCodes.CHARACTERISTIC_NOT_FOUND_IN_SERVICE:
                         // Characteristic not found in specified service
                         break;
-                    case BleCallback.FAILURE_READ_UNSUPPORTED:
+                    case BleErrorCodes.READ_UNSUPPORTED:
                         // Characteristic not support reading
                         break;
-                    case BleCallback.FAILURE_OTHER:
-                        // Other reason
+                    case BleErrorCodes.UNKNOWN:
+                        // Unknown
                         break;
                 }
             }
@@ -326,15 +350,16 @@ You must call destroy() to release some resources after BLE communication end
 |isScanning()|Is Scanning?|
 |isConnected(String address)|Check if the local bluetooth has connected to the remote device|
 |isConnecting(String address)|Check if local device is connecting with the remote device|
-|getConnectedDevices()|Get connected devices list|
-|getDeviceServices(BleDevice device);<br>getDeviceServices(String address)|Get service information which the remote device supports,note that it may return null. you will get a **List<ServiceInfo>**<br>ServiceInfo: it contains service uuid and CharacteristicInfo.|
+|getConnectedDevices()|Get connected devices|
+|getDeviceServices(String address)|Get all services that remote device supports,note that it may return null.|
 |*supportBle(Context context)*|Check if this device supports ble|
 |*isBluetoothOn()*|Check if local bluetooth is enabled|
 |*isAddressValid(String address)*|Check if the address is valid|
+|*getValidMtuRange()*|Get valid MTU range, this method returns an array(int[2], int[0]= MinMtu, int[1]=MaxMtu) |
 |*getBleRequiredPermissions()*|Get all BLE required permissions. Lower version may not require any permissions, so do not forget to check the length of permissionList|
 |*allBlePermissionsGranted(Context context)*|Check if all BLE required permissions have been granted|
-|*scanPermissionGranted(Context context)*|Check if scan-permission has been granted|
-|*connectionPermissionGranted(Context context)*|Check if connection-permission has been granted|
+|*scanPermissionGranted(Context context)*|Check if scan permissions have been granted|
+|*connectionPermissionGranted(Context context)*|Check if connection permissions have been granted|
 |*enableBluetooth(Activity activity, int requestCode)*|Turn on local bluetooth, calling the method will show users a request dialog to grant or reject,so you can get the result from Activity#onActivityResult().<br>Note that on Android12 or higher devices, this method can work only under the condition that BLE permissions have been granted|
 |*toggleBluetooth(boolean enable)*|Turn on or off local bluetooth directly without showing users a request dialog.<br>Note that this method, like *enableBluetooth(Activity activity, int requestCode)*, also requires BLE permissions. In addition, now it may not work on some devices, especially high version devices|
 |getScanOptions()|Get the scan option you set or default|

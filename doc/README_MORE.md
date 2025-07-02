@@ -32,14 +32,3 @@
            ExtraInfo e = (ExtraInfo) p;
        }
 ```
-
-### 3.How to select a thread to run all operation callbacks(except BleScanCallback， like connect/notify/read/write and so on)
-```java
-       // After creating a BleHandlerThread instance, you can or not call BleHandlerThread#start(),
-       // if you don't call it, it will be called automatically. When disconnected or failed to
-       // connect, BleHandlerThread#quitLooperSafely() will also be called automatically. You don't
-       // have to call other methods(like #getLooper(), #quit(), #or quitSafety()), they all have
-       // been deprecated in BleHandlerThread, and they will not work even if you have called them.
-       // You just need to create a instance and add it to specified position of BleManager#connect()
-       BleManager.getInstance().connect(device.getAddress(), connectCallback, new BleHandlerThread("BleThread"));
-```
