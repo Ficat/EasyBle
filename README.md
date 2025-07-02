@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle is a framework used for android BLE, it makes android Ble operation simpler and supports basic BLE operations
->On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.0.x)
+>On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.1.x)
 
 [中文文档](doc/README_CN.md)
 
