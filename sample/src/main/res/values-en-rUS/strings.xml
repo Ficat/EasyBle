@@ -38,6 +38,7 @@
     <string name="tips_connection_canceled">connection canceled</string>
     <string name="tips_connection_disconnected">connection has disconnected</string>
     <string name="tips_write_operation">please enter a hex string</string>
+    <string name="tips_write_operation_length_err">hex string length is not a multiple of 2</string>
     <string name="tips_not_support_ble">This device not support BLE</string>
     <string name="tips_user_reject_permissions">User rejected bluetooth permissions</string>
     <string name="tips_bluetooth_on">Bluetooth turned on</string>

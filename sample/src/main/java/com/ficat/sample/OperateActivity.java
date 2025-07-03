@@ -226,9 +226,14 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                 BleManager.getInstance().read(device, curService.getUuid(), curCharacteristic.getUuid(), readCallback);
                 break;
             case R.id.tv_write:
-                String str = etWrite.getText().toString();
+                String str = etWrite.getText().toString().trim();
                 if (TextUtils.isEmpty(str)) {
                     Toast.makeText(this, getResources().getString(R.string.tips_write_operation),
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (str.length() % 2 != 0) {
+                    Toast.makeText(this, getResources().getString(R.string.tips_write_operation_length_err),
                             Toast.LENGTH_SHORT).show();
                     return;
                 }

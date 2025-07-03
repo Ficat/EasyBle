@@ -156,7 +156,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         mGatt.close();
                     }
                     mConnState = DISCONNECTED;
-                    mConnectCallback.onConnectionFailed(BleErrorCodes.CONNECTION_TIMEOUT, mDevice);
+                    callback.onConnectionFailed(BleErrorCodes.CONNECTION_TIMEOUT, mDevice);
                     clearAndResetAll();
                 }
             });
@@ -177,11 +177,12 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 refreshDeviceCache();
                 mGatt.close();
                 mConnState = DISCONNECTED;
+                BleConnectCallback callback = mConnectCallback;
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        if (mConnectCallback != null) {
-                            mConnectCallback.onConnectionFailed(BleErrorCodes.CONNECTION_CANCELED, mDevice);
+                        if (callback != null) {
+                            callback.onConnectionFailed(BleErrorCodes.CONNECTION_CANCELED, mDevice);
                         }
                     }
                 });

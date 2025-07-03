@@ -38,6 +38,7 @@
     <string name="tips_connection_canceled">连接已取消</string>
     <string name="tips_connection_disconnected">连接已断开</string>
     <string name="tips_write_operation">请输入十六进制字符串命令</string>
+    <string name="tips_write_operation_length_err">字符串个数非2的倍数</string>
     <string name="tips_not_support_ble">该设备不支持BLE</string>
     <string name="tips_user_reject_permissions">用户已拒绝蓝牙权限</string>
     <string name="tips_bluetooth_on">蓝牙已打开</string>
