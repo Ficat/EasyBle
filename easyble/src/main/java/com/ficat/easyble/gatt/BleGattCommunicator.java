@@ -43,6 +43,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     private static final int CONNECTED = 3;
 
     private static final int DEFAULT_TIME_OUT_MILLS = 10000;//default 10s
+    private static final int MSG_WHAT_WRITE_DELAY = 100;
 
     private final Handler mHandler;
     private BleDevice mDevice;
@@ -447,15 +448,27 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                     return;
                 }
                 // Write the next batch
+                if (!isConnected()) {
+                    callback.onWriteBatchFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, writtenLen,
+                            writeData, characteristicUuid, device);
+                    return;
+                }
                 if (writeDelay <= 0) {
                     writeData(gattService, gattChar, next, c);
                 } else {
-                    mHandler.postDelayed(new Runnable() {
+                    Message msg = Message.obtain(mHandler, new Runnable() {
                         @Override
                         public void run() {
+                            if (!isConnected()) {
+                                callback.onWriteBatchFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED,
+                                        writtenLen, writeData, characteristicUuid, device);
+                                return;
+                            }
                             writeData(gattService, gattChar, next, c);
                         }
-                    }, writeDelay);
+                    });
+                    msg.what = MSG_WHAT_WRITE_DELAY;
+                    mHandler.sendMessageDelayed(msg, writeDelay);
                 }
             }
 
@@ -587,6 +600,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                     case BluetoothProfile.STATE_DISCONNECTED:
                         refreshDeviceCache();
                         gatt.close();
+                        mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
                         int previousState = mConnState;
                         mConnState = DISCONNECTED;
                         runOrQueueCallback(new Runnable() {
@@ -609,6 +623,9 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             boolean disconnectedAbnormally = isConnected() && newState == BluetoothProfile.STATE_DISCONNECTED;
             if (connectFailed) {
                 mHandler.removeCallbacksAndMessages(address);
+            }
+            if (disconnectedAbnormally) {
+                mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
             }
             mConnState = DISCONNECTED;
             runOrQueueCallback(new Runnable() {
@@ -847,7 +864,6 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     }
 
     private void clearAndResetAll() {
-        mHandler.removeCallbacksAndMessages(null);
         mReadCallbackMap.clear();
         mWriteCallbackMap.clear();
         mNotifyCallbackMap.clear();

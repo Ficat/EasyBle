@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.0'
+    implementation 'com.github.Ficat:EasyBle:v3.1.1'
 }
 ```
 
@@ -189,7 +189,7 @@ notify和indicate都使用以下方法
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
             public void onCharacteristicChanged(byte[] receivedData, UUID characteristicUuid, BleDevice device) {
-
+                // 注意该回调方法运行于非UI线程
             }
 
             @Override

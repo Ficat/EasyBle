@@ -13,7 +13,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.0'
+    implementation 'com.github.Ficat:EasyBle:v3.1.1'
 }
 ```
 
@@ -196,7 +196,7 @@ Both notification and indication use the following method to set notification or
        bleManager.notify(bleDevice, serviceUuid, notifyUuid, new BleNotifyCallback() {
             @Override
             public void onCharacteristicChanged(byte[] receivedData, UUID characteristicUuid, BleDevice device) {
-
+                // Note that this is called from a non-UI thread
             }
 
             @Override
