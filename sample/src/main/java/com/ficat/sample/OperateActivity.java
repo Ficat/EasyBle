@@ -267,6 +267,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
         @Override
         public void onConnected(BleDevice device) {
+            reset();
             addDeviceInfoDataAndUpdate();
             updateConnectionStateUi();
         }

@@ -110,6 +110,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         if (isConnecting()) {
                             callback.onConnectionStarted(mDevice);
                         } else {
+                            callback.onConnectionStarted(mDevice);
                             callback.onConnected(mDevice);
                         }
                     }
