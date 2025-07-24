@@ -100,9 +100,46 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         return this.mGatt;
     }
 
+    void onBluetoothOff() {
+        synchronized (mKeyConnection) {
+            if (mConnState == DISCONNECTED || mGatt == null) {
+                return;
+            }
+            boolean connecting = isConnecting();
+            boolean connected = isConnected();
+            mGatt.disconnect();
+            if (connecting) {
+                mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            }
+            if (connected) {
+                mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
+            }
+            refreshDeviceCache();
+            mGatt.close();
+            mConnState = DISCONNECTED;
+            BleConnectCallback callback = mConnectCallback;
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (callback != null) {
+                        if (connecting) {
+                            callback.onConnectionFailed(BleErrorCodes.BLUETOOTH_OFF, mDevice);
+                        } else if (connected) {
+                            callback.onDisconnected(mDevice, BluetoothGatt.GATT_SUCCESS);
+                        }
+                    }
+                }
+            });
+            clearAndResetAll();
+        }
+    }
+
     void connectGatt(int timeoutMills, BleConnectCallback callback) {
         synchronized (mKeyConnection) {
             if (isConnecting() || isConnected()) {
+                if (mConnectCallback == callback) {
+                    return;
+                }
                 mConnectCallback = callback;
                 mHandler.post(new Runnable() {
                     @Override
@@ -120,12 +157,13 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             // Connect to GATT
             BluetoothGatt gatt;
             Context context = BleManager.getInstance().getContext();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && mDevice.getBluetoothDevice().getType() == BluetoothDevice.DEVICE_TYPE_DUAL) {
-                gatt = mDevice.getBluetoothDevice().connectGatt(context, false,
-                        BleGattCommunicator.this, BluetoothDevice.TRANSPORT_LE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // If we use address to connect device, the bluetooth type may be DEVICE_TYPE_UNKNOWN.
+                // To avoid this, no matter what the bluetooth type is, we set 'transport' to BluetoothDevice.TRANSPORT_LE.
+                gatt = mDevice.getBluetoothDevice().connectGatt(context, false, BleGattCommunicator.this,
+                        BluetoothDevice.TRANSPORT_LE);
             } else {
-                gatt = mDevice.getBluetoothDevice().connectGatt(context, false,
-                        BleGattCommunicator.this);
+                gatt = mDevice.getBluetoothDevice().connectGatt(context, false, BleGattCommunicator.this);
             }
             // Failed to connect GATT
             if (gatt == null) {
@@ -144,7 +182,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    mConnectCallback.onConnectionStarted(mDevice);
+                    callback.onConnectionStarted(mDevice);
                 }
             });
             // Send connection timeout msg

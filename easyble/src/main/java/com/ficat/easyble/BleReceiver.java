@@ -6,15 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.text.TextUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Created by pw on 2018/9/23.
  */
 
 public final class BleReceiver extends BroadcastReceiver {
-    private final List<BluetoothStateChangedListener> listeners = new ArrayList<>();
+    private BluetoothStateChangeListener mListener;
 
     BleReceiver() {
 
@@ -26,40 +23,33 @@ public final class BleReceiver extends BroadcastReceiver {
         if (TextUtils.isEmpty(action) || !action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
             return;
         }
-        synchronized (this) {
-            for (BluetoothStateChangedListener l : listeners) {
-                if (l != null) {
-                    l.onBluetoothStateChanged();
-                }
-            }
+        int btState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, 0);
+        if (mListener != null) {
+            mListener.onBluetoothStateChanged(btState);
         }
     }
 
-    public void registerBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
+    public void setBluetoothStateChangeListener(BluetoothStateChangeListener listener) {
         if (listener == null) {
             throw new IllegalArgumentException("BluetoothStateChangedListener is null");
         }
-        synchronized (this) {
-            listeners.add(listener);
-        }
+        mListener = listener;
     }
 
-    public void unregisterBluetoothStateChangedListener(BluetoothStateChangedListener listener) {
-        if (listener == null) {
-            throw new IllegalArgumentException("BluetoothStateChangedListener is null");
-        }
-        synchronized (this) {
-            listeners.remove(listener);
-        }
+    public void removeBluetoothStateChangeListener() {
+        mListener = null;
     }
 
-    public void clearAllListener() {
-        synchronized (this) {
-            listeners.clear();
-        }
-    }
-
-    public interface BluetoothStateChangedListener {
-        void onBluetoothStateChanged();
+    public interface BluetoothStateChangeListener {
+        /**
+         * Called back while bluetooth state changed
+         *
+         * @param state Possible values are:
+         *              {@link BluetoothAdapter#STATE_OFF},
+         *              {@link BluetoothAdapter#STATE_TURNING_ON},
+         *              {@link BluetoothAdapter#STATE_ON},
+         *              {@link BluetoothAdapter#STATE_TURNING_OFF},
+         */
+        void onBluetoothStateChanged(int state);
     }
 }

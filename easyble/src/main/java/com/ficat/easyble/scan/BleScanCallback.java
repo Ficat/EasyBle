@@ -5,25 +5,6 @@ import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleErrorCodes;
 
 public interface BleScanCallback {
-    /**
-     * Bluetooth disabled
-     */
-    int BLUETOOTH_OFF = BleErrorCodes.BLUETOOTH_OFF;
-
-    /**
-     * Scan permissions not granted.
-     */
-    int SCAN_PERMISSION_NOT_GRANTED = BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED;
-
-    /**
-     * Previous scan not finished
-     */
-    int PREVIOUS_SCAN_NOT_FINISHED = BleErrorCodes.PREVIOUS_SCAN_NOT_FINISHED;
-
-    /**
-     * Failed to start scan because of unknown reason
-     */
-    int SCAN_FAILED = BleErrorCodes.SCAN_FAILED;
 
     void onScanning(BleDevice device, int rssi, byte[] scanRecord);
 
@@ -34,10 +15,11 @@ public interface BleScanCallback {
     /**
      * Scan failed
      *
-     * @param code see {@link #BLUETOOTH_OFF}
-     *                    {@link #SCAN_PERMISSION_NOT_GRANTED}
-     *                    {@link #PREVIOUS_SCAN_NOT_FINISHED}
-     *                    {@link #SCAN_FAILED}
+     * @param code see {@link BleErrorCodes#BLUETOOTH_OFF}
+     *             {@link BleErrorCodes#SCAN_PERMISSION_NOT_GRANTED}
+     *             {@link BleErrorCodes#SCAN_ALREADY_STARTED}
+     *             {@link BleErrorCodes#SCAN_TOO_FREQUENTLY}
+     *             {@link BleErrorCodes#UNKNOWN}
      */
     void onScanFailed(int code);
 }

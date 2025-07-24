@@ -263,6 +263,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         public void onConnectionStarted(BleDevice device) {
             OperateActivity.this.device = device;
             updateConnectionStateUi();
+            Logger.d("onConnectionStarted");
         }
 
         @Override
@@ -270,17 +271,18 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
             reset();
             addDeviceInfoDataAndUpdate();
             updateConnectionStateUi();
+            Logger.d("onConnected");
         }
 
         @Override
         public void onDisconnected(BleDevice device, int gattOperationStatus) {
             reset();
             updateConnectionStateUi();
+            Logger.d("onDisconnected");
         }
 
         @Override
         public void onConnectionFailed(int errCode, BleDevice device) {
-            Logger.e("connect failed, errCode:" + errCode);
             String tips;
             switch (errCode) {
                 case BleErrorCodes.BLUETOOTH_OFF:
@@ -303,6 +305,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                     tips = getString(R.string.tips_connection_fail);
                     break;
             }
+            Logger.d("onConnectionFailed, errCode:" + errCode+"   msg="+tips);
             Toast.makeText(OperateActivity.this, tips, Toast.LENGTH_LONG).show();
             reset();
             updateConnectionStateUi();
@@ -312,7 +315,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     private BleRssiCallback rssiCallback = new BleRssiCallback() {
         @Override
         public void onRssiSuccess(int rssi, BleDevice bleDevice) {
-            Logger.e("read rssi success:" + rssi);
+            Logger.d("onRssiSuccess  rssi="+rssi);
             Toast.makeText(OperateActivity.this, rssi + "dBm", Toast.LENGTH_SHORT).show();
         }
 
@@ -324,7 +327,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                 case BleErrorCodes.UNKNOWN:
                     break;
             }
-            Logger.e("read rssi failed, errCode=" + errCode);
+            Logger.d("onRssiFailed, errCode:" + errCode);
         }
     };
 
@@ -332,13 +335,13 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         @Override
         public void onCharacteristicChanged(byte[] receivedData, UUID characteristicUuid, BleDevice device) {
             String s = ByteUtils.bytes2HexStr(receivedData);
-            Logger.e("onCharacteristicChanged:" + s + "   Thread=" + Thread.currentThread().getName());
+            Logger.d("onCharacteristicChanged  data=" + s + "   Thread=" + Thread.currentThread().getName());
             runOnUiThread(() -> updateNotificationInfo(s));
         }
 
         @Override
         public void onNotifySuccess(UUID characteristicUuid, BleDevice device) {
-            Logger.e("notify success uuid:" + characteristicUuid);
+            Logger.d("onNotifySuccess  uuid=" + characteristicUuid);
             tvInfoNotification.setVisibility(View.VISIBLE);
             if (!notifySuccessUuids.contains(characteristicUuid)) {
                 notifySuccessUuids.add(characteristicUuid);
@@ -365,15 +368,14 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                     // Other reason
                     break;
             }
-            Logger.e("notify failed  errCode=" + errorCode);
-            Toast.makeText(OperateActivity.this, "notify failed, code=" + errorCode, Toast.LENGTH_LONG).show();
+            Logger.d("onNotifyFailed, errCode=" + errorCode);
         }
     };
 
     private BleWriteCallback writeCallback = new BleWriteCallback() {
         @Override
         public void onWriteSuccess(byte[] data, UUID characteristicUuid, BleDevice device) {
-            Logger.e("write success:" + ByteUtils.bytes2HexStr(data));
+            Logger.d("write success:" + ByteUtils.bytes2HexStr(data));
             tvWriteResult.setText(ByteUtils.bytes2HexStr(data));
         }
 
@@ -399,7 +401,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                     // Other reason
                     break;
             }
-            Logger.e("write failed, errCode=" + errCode);
+            Logger.d("write failed, errCode=" + errCode);
             tvWriteResult.setText("write failed, errorCode=" + errCode);
         }
     };
@@ -407,7 +409,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     private BleReadCallback readCallback = new BleReadCallback() {
         @Override
         public void onReadSuccess(byte[] readData, UUID characteristicUuid, BleDevice device) {
-            Logger.e("read success:" + ByteUtils.bytes2HexStr(readData));
+            Logger.d("read success:" + ByteUtils.bytes2HexStr(readData));
             tvReadResult.setText(ByteUtils.bytes2HexStr(readData));
         }
 

@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by pw on 2018/9/13.
  */
-public final class BleGattImpl implements BleGatt {
+public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateListen {
     private final Map<String, BleGattCommunicator> mBleGattCommunicatorMap;
     private final Handler mMainHandler;
 
@@ -250,6 +250,15 @@ public final class BleGattImpl implements BleGatt {
             }
         }
         return null;
+    }
+
+    @Override
+    public void onBluetoothStateChanged(int state) {
+        if (state == BluetoothAdapter.STATE_OFF) {
+            for (BleGattCommunicator d : mBleGattCommunicatorMap.values()) {
+                d.onBluetoothOff();
+            }
+        }
     }
 
     @Override

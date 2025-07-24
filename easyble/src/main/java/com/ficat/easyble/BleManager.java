@@ -35,7 +35,6 @@ import java.util.UUID;
 
 public final class BleManager {
     private Context mContext;
-    private BluetoothAdapter mBluetoothAdapter;
     private ScanOptions mScanOptions;
     private ConnectionOptions mConnectionOptions;
     private BleScan<BleScanCallback> mScan;
@@ -61,11 +60,9 @@ public final class BleManager {
             Logger.w("Activity Leak Risk: " + context.getClass().getName());
         }
         mContext = context;
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        mReceiver = new BleReceiver();
-        mScan = BleScanAccessor.newBleScan(mReceiver, new AccessKey());
+        registerBleReceiver();
+        mScan = BleScanAccessor.newBleScan(new AccessKey());
         mGatt = BleGattAccessor.newBleGatt(new AccessKey());
-        registerBleReceiver(mContext, mReceiver);
         return this;
     }
 
@@ -166,7 +163,7 @@ public final class BleManager {
 
     public void connect(String address, ConnectionOptions options, BleConnectCallback callback) {
         checkBluetoothAddress(address);
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+        BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
         BleDevice bleDevice = new BleDevice(device);
         connect(bleDevice, options, callback);
     }
@@ -395,6 +392,7 @@ public final class BleManager {
      * @see BleManager#init(Context)
      */
     public void destroy() {
+        unregisterBleReceiver();
         if (mGatt != null) {
             mGatt.destroy();
             mGatt = null;
@@ -403,13 +401,8 @@ public final class BleManager {
             mScan.destroy();
             mScan = null;
         }
-        if (mReceiver != null) {
-            mReceiver.clearAllListener();
-            unregisterBleReceiver(mContext, mReceiver);
-        }
         mScanOptions = null;
         mConnectionOptions = null;
-        mReceiver = null;
         mContext = null;
     }
 
@@ -608,19 +601,39 @@ public final class BleManager {
         return mContext;
     }
 
-    private void registerBleReceiver(Context context, BleReceiver receiver) {
+    private void registerBleReceiver() {
+        if (mContext == null) {
+            return;
+        }
+        mReceiver = new BleReceiver();
+        mReceiver.setBluetoothStateChangeListener(new BleReceiver.BluetoothStateChangeListener() {
+            @Override
+            public void onBluetoothStateChanged(int state) {
+                if (mScan != null && (mScan instanceof BluetoothStateListen)) {
+                    ((BluetoothStateListen) mScan).onBluetoothStateChanged(state);
+                }
+                if (mGatt != null && (mGatt instanceof BluetoothStateListen)) {
+                    ((BluetoothStateListen) mGatt).onBluetoothStateChanged(state);
+                }
+            }
+        });
         try {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-            context.registerReceiver(receiver, intentFilter);
+            mContext.registerReceiver(mReceiver, intentFilter);
         } catch (Exception e) {
             Logger.e("Registering BleReceiver encounters an exception: " + e.getMessage());
         }
     }
 
-    private void unregisterBleReceiver(Context context, BleReceiver receiver) {
+    private void unregisterBleReceiver() {
+        if (mContext == null || mReceiver == null) {
+            return;
+        }
         try {
-            context.unregisterReceiver(receiver);
+            mContext.unregisterReceiver(mReceiver);
+            mReceiver.removeBluetoothStateChangeListener();
+            mReceiver = null;
         } catch (Exception e) {
             Logger.e("Unregistering BleReceiver encounters an exception: " + e.getMessage());
         }
@@ -703,5 +716,9 @@ public final class BleManager {
         private AccessKey() {
 
         }
+    }
+
+    public interface BluetoothStateListen {
+        void onBluetoothStateChanged(int state);
     }
 }

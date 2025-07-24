@@ -17,15 +17,15 @@ import android.text.TextUtils;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleDeviceAccessor;
+import com.ficat.easyble.BleErrorCodes;
 import com.ficat.easyble.BleManager;
-import com.ficat.easyble.BleReceiver;
 import com.ficat.easyble.utils.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.BluetoothStateChangedListener {
+public final class BleScanner implements BleScan<BleScanCallback>, BleManager.BluetoothStateListen {
     private static final int SCAN_PERIOD_DEFAULT = 12000;
 
     protected BluetoothAdapter mBluetoothAdapter;
@@ -39,7 +39,6 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
     private UUID[] mServiceUuids;
     private volatile boolean mScanning;
     private final Handler mHandler;
-    private final BleReceiver mReceiver;
     private final Runnable mScanTimeoutRunnable = new Runnable() {
         @Override
         public void run() {
@@ -52,30 +51,25 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
      */
     private final AccessKey mAccessorKey = new AccessKey();
 
-    BleScanner(BleReceiver bleReceiver) {
+    BleScanner() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mHandler = new Handler(Looper.getMainLooper());
-        mReceiver = bleReceiver;
-        // Register BluetoothStateChangedListener
-        if (mReceiver != null) {
-            mReceiver.registerBluetoothStateChangedListener(this);
-        }
     }
 
     @Override
     public void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress,
                           UUID[] scanServiceUuids, final BleScanCallback callback) {
         if (!BleManager.isBluetoothOn()) {
-            callback.onScanFailed(BleScanCallback.BLUETOOTH_OFF);
+            callback.onScanFailed(BleErrorCodes.BLUETOOTH_OFF);
             return;
         }
         if (!BleManager.scanPermissionGranted(BleManager.getInstance().getContext())) {
-            callback.onScanFailed(BleScanCallback.SCAN_PERMISSION_NOT_GRANTED);
+            callback.onScanFailed(BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED);
             return;
         }
         synchronized (this) {
             if (mScanning) {
-                callback.onScanFailed(BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED);
+                callback.onScanFailed(BleErrorCodes.SCAN_ALREADY_STARTED);
                 return;
             }
             mBleScanCallback = callback;
@@ -87,7 +81,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
                 if (mScanning) {
                     mBleScanCallback.onScanStarted();
                 } else {
-                    mBleScanCallback.onScanFailed(BleScanCallback.SCAN_FAILED);
+                    mBleScanCallback.onScanFailed(BleErrorCodes.UNKNOWN);
                 }
             }
             if (mScanning) {
@@ -96,9 +90,13 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
         }
     }
 
-    @SuppressWarnings("NewApi")
     @Override
-    public synchronized void stopScan() {
+    public void stopScan() {
+        stopScan(true);
+    }
+
+    @SuppressWarnings("NewApi")
+    private void stopScan(boolean stopNormally) {
         synchronized (this) {
             if (mBluetoothAdapter == null || !mScanning) {
                 return;
@@ -115,7 +113,9 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
             }
             mScanning = false;
             if (mBleScanCallback != null) {
-                mBleScanCallback.onScanFinished();
+                if (stopNormally) {
+                    mBleScanCallback.onScanFinished();
+                }
                 mBleScanCallback = null;
             }
             mHandler.removeCallbacks(mScanTimeoutRunnable);
@@ -128,8 +128,8 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
     }
 
     @Override
-    public void onBluetoothStateChanged() {
-        if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_OFF) {
+    public void onBluetoothStateChanged(int state) {
+        if (state == BluetoothAdapter.STATE_OFF) {
             stopScan();
         }
     }
@@ -139,10 +139,6 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
         stopScan();
         // Remove scan period delayed message
         mHandler.removeCallbacksAndMessages(null);
-        // Unregister BluetoothStateChangedListener
-        if (mReceiver != null) {
-            mReceiver.unregisterBluetoothStateChangedListener(this);
-        }
     }
 
     private boolean scanByOldApi() {
@@ -201,7 +197,24 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleReceiver.B
 
                 @Override
                 public void onScanFailed(int errorCode) {
-                    Logger.i("Ble scan fail: " + errorCode);
+                    if (mScanning && mBleScanCallback != null) {
+                        switch (errorCode) {
+                            case ScanCallback.SCAN_FAILED_ALREADY_STARTED:
+                                mBleScanCallback.onScanFailed(BleErrorCodes.SCAN_ALREADY_STARTED);
+                                break;
+                            case ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY:
+                                mBleScanCallback.onScanFailed(BleErrorCodes.SCAN_TOO_FREQUENTLY);
+                                break;
+                            case ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED:
+                            case ScanCallback.SCAN_FAILED_INTERNAL_ERROR:
+                            case ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED:
+                            case ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES:
+                            default:
+                                mBleScanCallback.onScanFailed(BleErrorCodes.UNKNOWN);
+                                break;
+                        }
+                    }
+                    stopScan(false);
                 }
             };
         }

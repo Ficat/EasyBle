@@ -19,12 +19,12 @@ public class BleErrorCodes {
     /**
      * Previous scan not finished
      */
-    public static final int PREVIOUS_SCAN_NOT_FINISHED = 12;
+    public static final int SCAN_ALREADY_STARTED = 12;
 
     /**
-     * Failed to start scan because of unknown reason
+     * Scan too frequently
      */
-    public static final int SCAN_FAILED = 13;
+    public static final int SCAN_TOO_FREQUENTLY = 13;
 
     /**
      * Connection permissions not granted
