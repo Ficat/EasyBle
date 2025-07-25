@@ -29,3 +29,21 @@
            ExtraInfo e = (ExtraInfo) p;
        }
 ```
+### 3.使用BleManager#getDeviceServices(String)获取服务与特征
+```java
+       List<BluetoothGattService> services = BleManager.getInstance().getDeviceServices(device.getAddress());
+       if (services == null) {
+           return;
+       }
+       for (BluetoothGattService service : services) {
+           // 获取服务下的所有特征
+           List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+           for (BluetoothGattCharacteristic ch: characteristics){
+               // 检查该特征的属性
+               boolean writable = BluetoothGattUtils.isCharacteristicWritable(ch);
+               boolean readable = BluetoothGattUtils.isCharacteristicReadable(ch);
+               boolean notifiable = BluetoothGattUtils.isCharacteristicNotifiable(ch);
+               boolean indicative = BluetoothGattUtils.isCharacteristicIndicative(ch);
+           }
+       }
+```

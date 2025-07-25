@@ -346,7 +346,7 @@ notify和indicate都使用以下方法
 |isConnected(String address)|是否已连接到指定mac的设备|
 |isConnecting(String address)|是否正在与指定设备进行连接|
 |getConnectedDevices()|获取已连接设备列表|
-|getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null。 [参见示例](doc/README_MORE.md)|
+|getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null。 [参见示例](doc/README_MORE_CN.md)|
 |*supportBle(Context context)*|设备是否支持BLE|
 |*isBluetoothOn()*|蓝牙是否已打开|
 |*isAddressValid(String address)*|是否为合法的mac地址|
