@@ -32,3 +32,22 @@
            ExtraInfo e = (ExtraInfo) p;
        }
 ```
+
+### 3.About BleManager#getDeviceServices(String), how to get services and its characteristics
+```java
+       List<BluetoothGattService> services = BleManager.getInstance().getDeviceServices(device.getAddress());
+       if (services == null) {
+           return;
+       }
+       for (BluetoothGattService service : services) {
+           // Get its characteristics
+           List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+           for (BluetoothGattCharacteristic ch: characteristics){
+               // Check if the property of the characteristic
+               boolean writable = BluetoothGattUtils.isCharacteristicWritable(ch);
+               boolean readable = BluetoothGattUtils.isCharacteristicReadable(ch);
+               boolean notifiable = BluetoothGattUtils.isCharacteristicNotifiable(ch);
+               boolean indicative = BluetoothGattUtils.isCharacteristicIndicative(ch);
+           }
+       }
+```

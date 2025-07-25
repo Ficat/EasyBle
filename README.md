@@ -13,7 +13,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.3'
+    implementation 'com.github.Ficat:EasyBle:v3.1.4'
 }
 ```
 
@@ -94,16 +94,19 @@ On API23+ or higher devices, scan requires some permissions, so ensure all BLE p
             @Override
             public void onScanFailed(int code) {
                 switch (code) {
-                    case BleScanCallback.BLUETOOTH_OFF:
+                    case BleErrorCodes.BLUETOOTH_OFF:
                         // Bluetooth turned off
                         break;
-                    case BleScanCallback.SCAN_PERMISSION_NOT_GRANTED:
+                    case BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED:
                         // Scan permissions not granted
                         break;
-                    case BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED:
+                    case BleErrorCodes.SCAN_ALREADY_STARTED:
                         // Previous scan not finished
                         break;
-                    case BleScanCallback.SCAN_FAILED:
+                    case BleErrorCodes.SCAN_TOO_FREQUENTLY:
+                        // Scan too frequently
+                        break;
+                    case BleErrorCodes.UNKNOWN:
                         // Failed to start scan because of unknown reason
                         break;
                 }
@@ -351,7 +354,7 @@ You must call destroy() to release some resources after BLE communication end
 |isConnected(String address)|Check if the local bluetooth has connected to the remote device|
 |isConnecting(String address)|Check if local device is connecting with the remote device|
 |getConnectedDevices()|Get connected devices|
-|getDeviceServices(String address)|Get all services that remote device supports,note that it may return null.|
+|getDeviceServices(String address)|Get all services that remote device supports,note that it may return null. [See example](doc/README_MORE.md)|
 |*supportBle(Context context)*|Check if this device supports ble|
 |*isBluetoothOn()*|Check if local bluetooth is enabled|
 |*isAddressValid(String address)*|Check if the address is valid|

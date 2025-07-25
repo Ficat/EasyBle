@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.3'
+    implementation 'com.github.Ficat:EasyBle:v3.1.4'
 }
 ```
 
@@ -62,7 +62,7 @@ dependencies {
                 .setConnectionOptions(connOptions)
                 .setLog(true, "TAG")
                 .init(this.getApplication());// 这里需要Context，但为了防止内存泄露，最好传Application实例
-        
+
 ```
 
 ### 3.扫描
@@ -89,16 +89,19 @@ dependencies {
             @Override
             public void onScanFailed(int code) {
                 switch (code) {
-                    case BleScanCallback.BLUETOOTH_OFF:
+                    case BleErrorCodes.BLUETOOTH_OFF:
                         // 蓝牙已关闭
                         break;
-                    case BleScanCallback.SCAN_PERMISSION_NOT_GRANTED:
+                    case BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED:
                         // 扫描权限未授予
                         break;
-                    case BleScanCallback.PREVIOUS_SCAN_NOT_FINISHED:
+                    case BleErrorCodes.SCAN_ALREADY_STARTED:
                         // 上次扫描尚未完成
                         break;
-                    case BleScanCallback.SCAN_FAILED:
+                    case BleErrorCodes.SCAN_TOO_FREQUENTLY:
+                        // 扫描太过频繁
+                        break;
+                    case BleErrorCodes.UNKNOWN:
                         // 未知原因
                         break;
                 }
@@ -175,7 +178,7 @@ dependencies {
 
        //断开与指定设备的连接
        bleManager.disconnect(bleDevice);
-	   
+
        //传入目标的mac地址断开与该设备的连接
        bleManager.disconnect(address);
 
@@ -343,7 +346,7 @@ notify和indicate都使用以下方法
 |isConnected(String address)|是否已连接到指定mac的设备|
 |isConnecting(String address)|是否正在与指定设备进行连接|
 |getConnectedDevices()|获取已连接设备列表|
-|getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null|
+|getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null。 [参见示例](doc/README_MORE.md)|
 |*supportBle(Context context)*|设备是否支持BLE|
 |*isBluetoothOn()*|蓝牙是否已打开|
 |*isAddressValid(String address)*|是否为合法的mac地址|
