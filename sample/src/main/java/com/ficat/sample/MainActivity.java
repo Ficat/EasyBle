@@ -65,12 +65,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
-                .scanPeriod(8000)
+                .scanPeriod(8000) // scan period (scan timeout)
                 .scanDeviceName(null);
 
         BleManager.ConnectionOptions connectionOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectionPeriod(12000);
+                .connectionPeriod(12000); // connection period (connection timeout)
 
         manager = BleManager
                 .getInstance()
@@ -107,54 +107,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_request_permission:
-                List<String> list = BleManager.getBleRequiredPermissions();
-                // Lower version devices may not require any permissions, so check it
-                if (list.size() <= 0) {
-                    return;
-                }
-                EasyPermissions
-                        .with(this)
-                        .request(list.toArray(new String[0]))
-                        .result((grantAll, results) -> {
-                            if (!grantAll) {
-                                Toast.makeText(MainActivity.this,
-                                        getString(R.string.tips_user_reject_permissions),
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                break;
-            case R.id.btn_enable_bluetooth:
-                if (!BleManager.allBlePermissionsGranted(this)) {
-                    Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (BleManager.isBluetoothOn()) {
-                    Toast.makeText(this, getString(R.string.tips_bluetooth_on), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                BleManager.enableBluetooth(this, REQUEST_CODE_ENABLE_BLUETOOTH);
-                break;
-            case R.id.btn_scan:
-                if (!BleManager.allBlePermissionsGranted(this)) {
-                    Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (!BleManager.isBluetoothOn()) {
-                    Toast.makeText(this, getString(R.string.tips_enable_bluetooth), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                //Android7 or higher, scanning may need GPS permission
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
-                }
-                if (!manager.isScanning()) {
-                    startScan();
-                }
-                break;
-            default:
-                break;
+        if (v.getId() == R.id.btn_request_permission) {
+            List<String> list = BleManager.getBleRequiredPermissions();
+            // Lower version devices may not require any permissions, so check it
+            if (list.size() <= 0) {
+                return;
+            }
+            EasyPermissions
+                    .with(this)
+                    .request(list.toArray(new String[0]))
+                    .result((grantAll, results) -> {
+                        if (!grantAll) {
+                            Toast.makeText(MainActivity.this,
+                                    getString(R.string.tips_user_reject_permissions),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        } else if (v.getId() == R.id.btn_enable_bluetooth) {
+            if (!BleManager.allBlePermissionsGranted(this)) {
+                Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (BleManager.isBluetoothOn()) {
+                Toast.makeText(this, getString(R.string.tips_bluetooth_on), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            BleManager.enableBluetooth(this, REQUEST_CODE_ENABLE_BLUETOOTH);
+        } else if (v.getId() == R.id.btn_scan) {
+            if (!BleManager.allBlePermissionsGranted(this)) {
+                Toast.makeText(this, getString(R.string.tips_request_ble_permissions), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!BleManager.isBluetoothOn()) {
+                Toast.makeText(this, getString(R.string.tips_enable_bluetooth), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            //Android7 or higher, scanning may need GPS permission
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isGpsOn()) {
+                Toast.makeText(this, getResources().getString(R.string.tips_turn_on_gps), Toast.LENGTH_LONG).show();
+            }
+            if (!manager.isScanning()) {
+                startScan();
+            }
         }
     }
 

@@ -22,7 +22,7 @@ public interface BleGatt {
     int ATT_OCCUPY_BYTES_NUM = 3;
     String CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
-    void connect(int timeoutMills, BleDevice device, BleConnectCallback callback);
+    void connect(long timeoutMillis, BleDevice device, BleConnectCallback callback);
 
     void disconnect(String address);
 
@@ -37,13 +37,15 @@ public interface BleGatt {
     void write(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] data, BleWriteCallback callback);
 
     void writeByBatch(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] data,
-                      int lengthPerPackage, long writeDelay, BleWriteByBatchCallback callback);
+                      int lengthPerBatch, long batchInterval, BleWriteByBatchCallback callback);
 
     void readRssi(BleDevice device, BleRssiCallback callback);
 
     void setMtu(BleDevice device, int mtu, BleMtuCallback callback);
 
     List<BleDevice> getConnectedDevices();
+
+    List<BleDevice> getConnectingDevices();
 
     BluetoothGatt getBluetoothGatt(String address);
 

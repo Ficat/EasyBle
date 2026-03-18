@@ -21,12 +21,12 @@ public interface BleConnectCallback {
     /**
      * Disconnected from the remote device
      *
-     * @param gattOperationStatus operation status, see details from {@link android.bluetooth.BluetoothGatt}
-     *                            normally, it will be {@link android.bluetooth.BluetoothGatt#GATT_SUCCESS},
-     *                            otherwise it indicates an abnormal situation.
-     * @param device              the remote device
+     * @param status operation status, see details from {@link android.bluetooth.BluetoothGatt},
+     *               normally it will be {@link android.bluetooth.BluetoothGatt#GATT_SUCCESS},
+     *               otherwise it indicates an abnormal situation.
+     * @param device the remote device
      */
-    void onDisconnected(BleDevice device, int gattOperationStatus);
+    void onDisconnected(BleDevice device, int status);
 
     /**
      * Failed to connect to the remote device
@@ -37,6 +37,7 @@ public interface BleConnectCallback {
      *                {@link com.ficat.easyble.BleErrorCodes#CONNECTION_REACH_MAX_NUM}
      *                {@link com.ficat.easyble.BleErrorCodes#CONNECTION_TIMEOUT}
      *                {@link com.ficat.easyble.BleErrorCodes#CONNECTION_CANCELED}
+     *                {@link com.ficat.easyble.BleErrorCodes#CONNECTION_ALREADY_STARTED_OR_ESTABLISHED}
      *                {@link com.ficat.easyble.BleErrorCodes#UNKNOWN}
      * @param device  the remote device
      */

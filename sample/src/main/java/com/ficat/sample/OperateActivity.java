@@ -18,7 +18,6 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
-import com.ficat.easyble.utils.BluetoothGattUtils;
 import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.BleErrorCodes;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
@@ -149,10 +148,10 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         tvInfoCurrentUuid.setText(extra);
         tvWriteResult.setText(R.string.write_result);
         tvReadResult.setText(R.string.read_result);
-        llRead.setVisibility(BluetoothGattUtils.isCharacteristicReadable(charInfo) ? View.VISIBLE : View.GONE);
-        llWrite.setVisibility(BluetoothGattUtils.isCharacteristicWritable(charInfo) ? View.VISIBLE : View.GONE);
-        tvNotify.setVisibility((BluetoothGattUtils.isCharacteristicNotifiable(charInfo) ||
-                BluetoothGattUtils.isCharacteristicIndicative(charInfo)) ? View.VISIBLE : View.GONE);
+        llRead.setVisibility(BleManager.isCharacteristicReadable(charInfo) ? View.VISIBLE : View.GONE);
+        llWrite.setVisibility(BleManager.isCharacteristicWritable(charInfo) ? View.VISIBLE : View.GONE);
+        tvNotify.setVisibility((BleManager.isCharacteristicNotifiable(charInfo) ||
+                BleManager.isCharacteristicIndicative(charInfo)) ? View.VISIBLE : View.GONE);
     }
 
     private void updateConnectionStateUi() {
@@ -218,34 +217,25 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                     Toast.LENGTH_SHORT).show();
             return;
         }
-        switch (v.getId()) {
-            case R.id.tv_read_rssi:
-                BleManager.getInstance().readRssi(device, rssiCallback);
-                break;
-            case R.id.tv_read:
-                BleManager.getInstance().read(device, curService.getUuid(), curCharacteristic.getUuid(), readCallback);
-                break;
-            case R.id.tv_write:
-                String str = etWrite.getText().toString().trim();
-                if (TextUtils.isEmpty(str)) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_write_operation),
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (str.length() % 2 != 0) {
-                    Toast.makeText(this, getResources().getString(R.string.tips_write_operation_length_err),
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                BleManager.getInstance().write(device, curService.getUuid(), curCharacteristic.getUuid(),
-                        ByteUtils.hexStr2Bytes(str), writeCallback);
-                break;
-            case R.id.tv_notify_or_indicate:
-                BleManager.getInstance().notify(device, curService.getUuid(),
-                        curCharacteristic.getUuid(), notifyCallback);
-                break;
-            default:
-                break;
+        if (v.getId() == R.id.tv_read_rssi) {
+            BleManager.getInstance().readRssi(device, rssiCallback);
+        } else if (v.getId() == R.id.tv_read) {
+            BleManager.getInstance().read(device, curService.getUuid(), curCharacteristic.getUuid(), readCallback);
+        } else if (v.getId() == R.id.tv_write) {
+            String str = etWrite.getText().toString().trim();
+            if (TextUtils.isEmpty(str)) {
+                Toast.makeText(this, getResources().getString(R.string.tips_write_operation), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (str.length() % 2 != 0) {
+                Toast.makeText(this, getResources().getString(R.string.tips_write_operation_length_err), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            BleManager.getInstance().write(device, curService.getUuid(),
+                    curCharacteristic.getUuid(), ByteUtils.hexStr2Bytes(str), writeCallback);
+        } else if (v.getId() == R.id.tv_notify_or_indicate) {
+            BleManager.getInstance().notify(device, curService.getUuid(),
+                    curCharacteristic.getUuid(), notifyCallback);
         }
     }
 
@@ -275,7 +265,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         }
 
         @Override
-        public void onDisconnected(BleDevice device, int gattOperationStatus) {
+        public void onDisconnected(BleDevice device, int status) {
             reset();
             updateConnectionStateUi();
             Logger.d("onDisconnected");
@@ -300,14 +290,19 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                 case BleErrorCodes.CONNECTION_CANCELED:
                     tips = getString(R.string.tips_connection_canceled);
                     break;
+                case BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED:
+                    tips = getString(R.string.tips_connection_already_started_or_established);
+                    break;
                 case BleErrorCodes.UNKNOWN:
                 default:
                     tips = getString(R.string.tips_connection_fail);
                     break;
             }
-            Logger.d("onConnectionFailed, errCode:" + errCode+"   msg="+tips);
+            Logger.d("onConnectionFailed, errCode:" + errCode + "   msg=" + tips);
             Toast.makeText(OperateActivity.this, tips, Toast.LENGTH_LONG).show();
-            reset();
+            if (errCode != BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED) {
+                reset();
+            }
             updateConnectionStateUi();
         }
     };
@@ -315,7 +310,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
     private BleRssiCallback rssiCallback = new BleRssiCallback() {
         @Override
         public void onRssiSuccess(int rssi, BleDevice bleDevice) {
-            Logger.d("onRssiSuccess  rssi="+rssi);
+            Logger.d("onRssiSuccess  rssi=" + rssi);
             Toast.makeText(OperateActivity.this, rssi + "dBm", Toast.LENGTH_SHORT).show();
         }
 

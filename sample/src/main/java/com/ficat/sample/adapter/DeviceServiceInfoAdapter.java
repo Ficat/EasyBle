@@ -7,7 +7,7 @@ import android.support.annotation.NonNull;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.ficat.easyble.utils.BluetoothGattUtils;
+import com.ficat.easyble.BleManager;
 import com.ficat.sample.R;
 
 import java.util.List;
@@ -31,16 +31,16 @@ public class DeviceServiceInfoAdapter extends CommonExpandableListAdapter<Blueto
         TextView tvAttribution = (TextView) holder.mViews.get(R.id.tv_characteristic_attribution);
         tvUuid.setText(childData.getUuid().toString());
         String attri = "";
-        if (BluetoothGattUtils.isCharacteristicNotifiable(childData)) {
+        if (BleManager.isCharacteristicNotifiable(childData)) {
             attri += "Notify  ";
         }
-        if (BluetoothGattUtils.isCharacteristicIndicative(childData)) {
+        if (BleManager.isCharacteristicIndicative(childData)) {
             attri += "Indicate  ";
         }
-        if (BluetoothGattUtils.isCharacteristicReadable(childData)) {
+        if (BleManager.isCharacteristicReadable(childData)) {
             attri += "Read ";
         }
-        if (BluetoothGattUtils.isCharacteristicWritable(childData)) {
+        if (BleManager.isCharacteristicWritable(childData)) {
             attri += "Write ";
         }
         tvAttribution.setText(attri);

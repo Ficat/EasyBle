@@ -2,6 +2,7 @@ package com.ficat.easyble.gatt;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -15,6 +16,7 @@ import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
 import com.ficat.easyble.gatt.callback.BleWriteCallback;
+import com.ficat.easyble.utils.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +38,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     }
 
     @Override
-    public void connect(int timeoutMills, BleDevice device, BleConnectCallback callback) {
+    public void connect(long timeoutMillis, BleDevice device, BleConnectCallback callback) {
         // Check bluetooth and permission state
         boolean bluetoothOff = !BleManager.isBluetoothOn();
         boolean noPermissions = !BleManager.connectionPermissionGranted(BleManager.getInstance().getContext());
@@ -87,7 +89,22 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
         if (communicator.getBleDevice() != device) {
             communicator.updateBleDevice(device);
         }
-        communicator.connectGatt(timeoutMills, callback);
+
+        // Android versions below 10 allow only one connection request at a time and queue all
+        // subsequent requests. In Android 10 and higher, the system groups connection requests
+        // for batched execution. That means, if Android versions below 10, we must wait for a
+        // callback for a previous connection before we initiate a new connection request
+        if (Build.VERSION.SDK_INT < 29) {
+            for (BleDevice d : getConnectingDevices()) {
+                if (!d.getAddress().equals(device.getAddress())) {
+                    Logger.w("The current connection request may be blocked or fail" +
+                            " because the local device is connecting to other devices");
+                    break;
+                }
+            }
+        }
+
+        communicator.connectGatt(timeoutMillis, callback);
     }
 
     @Override
@@ -166,7 +183,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
 
     @Override
     public void writeByBatch(BleDevice device, UUID serviceUuid, UUID writeUuid, byte[] writeData,
-                             int lengthPerPackage, long writeDelay, BleWriteByBatchCallback callback) {
+                             int lengthPerBatch, long batchInterval, BleWriteByBatchCallback callback) {
         BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
         if (communicator == null) {
             mMainHandler.post(new Runnable() {
@@ -177,7 +194,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
             });
             return;
         }
-        communicator.writeByBatch(serviceUuid, writeUuid, writeData, lengthPerPackage, writeDelay, callback);
+        communicator.writeByBatch(serviceUuid, writeUuid, writeData, lengthPerBatch, batchInterval, callback);
     }
 
     @Override
@@ -216,6 +233,17 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
         List<BleDevice> deviceList = new ArrayList<>();
         for (BleGattCommunicator d : mBleGattCommunicatorMap.values()) {
             if (d.isConnected()) {
+                deviceList.add(d.getBleDevice());
+            }
+        }
+        return deviceList;
+    }
+
+    @Override
+    public List<BleDevice> getConnectingDevices() {
+        List<BleDevice> deviceList = new ArrayList<>();
+        for (BleGattCommunicator d : mBleGattCommunicatorMap.values()) {
+            if (d.isConnecting()) {
                 deviceList.add(d.getBleDevice());
             }
         }

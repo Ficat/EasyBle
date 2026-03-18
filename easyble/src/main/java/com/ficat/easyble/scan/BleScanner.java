@@ -1,5 +1,6 @@
 package com.ficat.easyble.scan;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -20,20 +21,21 @@ import com.ficat.easyble.BleDeviceAccessor;
 import com.ficat.easyble.BleErrorCodes;
 import com.ficat.easyble.BleManager;
 import com.ficat.easyble.utils.Logger;
+import com.ficat.easyble.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@SuppressLint("MissingPermission")
 public final class BleScanner implements BleScan<BleScanCallback>, BleManager.BluetoothStateListen {
-    private static final int SCAN_PERIOD_DEFAULT = 12000;
+    private static final long SCAN_PERIOD_DEFAULT = 12000;
 
-    protected BluetoothAdapter mBluetoothAdapter;
+    private final BluetoothAdapter mBluetoothAdapter;
     private BluetoothAdapter.LeScanCallback mLeScanCallback;//sdk<21 uses this scan callback
     private ScanCallback mScanCallback;//SDK>=21 uses this scan callback
     private BleScanCallback mBleScanCallback;//all sdk version uses this scan callback
     private BluetoothLeScanner mBluetoothLeScanner;
-    private ScanSettings mScanSettings;
     private String mDeviceName;
     private String mDeviceAddress;
     private UUID[] mServiceUuids;
@@ -57,7 +59,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     }
 
     @Override
-    public void startScan(int scanPeriod, String scanDeviceName, String scanDeviceAddress,
+    public void startScan(long scanPeriod, String scanDeviceName, String scanDeviceAddress,
                           UUID[] scanServiceUuids, final BleScanCallback callback) {
         if (!BleManager.isBluetoothOn()) {
             callback.onScanFailed(BleErrorCodes.BLUETOOTH_OFF);
@@ -221,18 +223,29 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
         if (mBluetoothLeScanner == null) {
             mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
         }
-        if (mScanSettings == null) {
-            mScanSettings = new ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .build();
+
+        boolean isScreenOff = !Utils.isScreenOn(BleManager.getInstance().getContext());
+        boolean isBackground = !Utils.isForeground(BleManager.getInstance().getContext());
+        boolean hasFilterServiceUuids = mServiceUuids != null && mServiceUuids.length > 0;
+        boolean hasFilter = hasFilterServiceUuids || !TextUtils.isEmpty(mDeviceName) || !TextUtils.isEmpty(mDeviceAddress);
+
+        if (isScreenOff && !hasFilter) {
+            Logger.w("The screen is off, the current scan has no filters, it may be suspended until the screen is turned on again");
         }
+
+        ScanSettings scanSettings = new ScanSettings.Builder()
+                .setScanMode((isScreenOff || isBackground) ? ScanSettings.SCAN_MODE_LOW_POWER : ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build();
+
         List<ScanFilter> scanFilters = new ArrayList<>();
         ScanFilter filter = new ScanFilter.Builder()
                 .setDeviceName(mDeviceName)
                 .setDeviceAddress(mDeviceAddress)
+                .setServiceUuid(hasFilterServiceUuids ? new ParcelUuid(mServiceUuids[0]) : null)
                 .build();
         scanFilters.add(filter);
-        mBluetoothLeScanner.startScan(scanFilters, mScanSettings, mScanCallback);
+
+        mBluetoothLeScanner.startScan(scanFilters, scanSettings, mScanCallback);
         return true;
     }
 

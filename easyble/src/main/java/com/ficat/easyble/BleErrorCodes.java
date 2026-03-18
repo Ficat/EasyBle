@@ -47,6 +47,11 @@ public class BleErrorCodes {
     public static final int CONNECTION_CANCELED = 23;
 
     /**
+     * Connection already started or established
+     */
+    public static final int CONNECTION_ALREADY_STARTED_OR_ESTABLISHED = 24;
+
+    /**
      * Connection not established yet
      */
     public static final int CONNECTION_NOT_ESTABLISHED = 30;

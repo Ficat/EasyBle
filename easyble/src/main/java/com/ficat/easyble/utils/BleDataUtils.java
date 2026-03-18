@@ -24,10 +24,9 @@ public class BleDataUtils {
         if (start > end || end > originalData.length - 1) {
             return null;
         }
-        byte[] packageData = new byte[end - start + 1];
-        for (int i = 0; start <= end; i++, start++) {
-            packageData[i] = originalData[start];
-        }
+        int len = end - start + 1;
+        byte[] packageData = new byte[len];
+        System.arraycopy(originalData, start, packageData, 0, len);
         return packageData;
     }
 }

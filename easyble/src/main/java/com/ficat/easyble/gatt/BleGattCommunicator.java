@@ -1,5 +1,6 @@
 package com.ficat.easyble.gatt;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -34,6 +35,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@SuppressLint("MissingPermission")
 public final class BleGattCommunicator extends BluetoothGattCallback {
     /**
      * Connection state constants
@@ -42,7 +44,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     private static final int CONNECTING = 2;
     private static final int CONNECTED = 3;
 
-    private static final int DEFAULT_TIME_OUT_MILLS = 10000;//default 10s
+    private static final long DEFAULT_TIME_OUT_MILLIS = 10000;//default 10s
     private static final int MSG_WHAT_WRITE_DELAY = 100;
 
     private final Handler mHandler;
@@ -77,6 +79,10 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         return mConnState == CONNECTING;
     }
 
+    boolean isDisconnected() {
+        return mConnState == DISCONNECTED;
+    }
+
     int getConnectionState() {
         return this.mConnState;
     }
@@ -102,22 +108,23 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
 
     void onBluetoothOff() {
         synchronized (mKeyConnection) {
-            if (mConnState == DISCONNECTED || mGatt == null) {
+            if (isDisconnected()) {
                 return;
             }
             boolean connecting = isConnecting();
             boolean connected = isConnected();
-            mGatt.disconnect();
-            if (connecting) {
-                mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
+            if (mGatt != null) {
+                mGatt.disconnect();
+                refreshDeviceCache();
+                mGatt.close();
+                mGatt = null;
             }
-            if (connected) {
-                mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
-            }
-            refreshDeviceCache();
-            mGatt.close();
+            mCurrentMtu = BleGatt.MTU_MIN;
             mConnState = DISCONNECTED;
             BleConnectCallback callback = mConnectCallback;
+            clearAllCallbacks();
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -130,28 +137,43 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                     }
                 }
             });
-            clearAndResetAll();
         }
     }
 
-    void connectGatt(int timeoutMills, BleConnectCallback callback) {
+    private void onConnectionTimeout() {
+        synchronized (mKeyConnection) {
+            if (!isConnecting()) {
+                return;
+            }
+            mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
+            if (mGatt != null) {
+                mGatt.disconnect();
+                refreshDeviceCache();
+                mGatt.close();
+                mGatt = null;
+            }
+            mCurrentMtu = BleGatt.MTU_MIN;
+            mConnState = DISCONNECTED;
+            BleConnectCallback callback = mConnectCallback;
+            clearAllCallbacks();
+            if (callback != null) {
+                callback.onConnectionFailed(BleErrorCodes.CONNECTION_TIMEOUT, mDevice);
+            }
+        }
+    }
+
+    void connectGatt(long timeoutMillis, BleConnectCallback callback) {
         synchronized (mKeyConnection) {
             if (isConnecting() || isConnected()) {
-                if (mConnectCallback == callback) {
-                    return;
-                }
-                mConnectCallback = callback;
-                mHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isConnecting()) {
-                            callback.onConnectionStarted(mDevice);
-                        } else {
-                            callback.onConnectionStarted(mDevice);
-                            callback.onConnected(mDevice);
+                if (mConnectCallback != callback) {
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onConnectionFailed(BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED, mDevice);
                         }
-                    }
-                });
+                    });
+                }
                 return;
             }
             // Connect to GATT
@@ -189,34 +211,31 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             Message msg = Message.obtain(mHandler, new Runnable() {
                 @Override
                 public void run() {
-                    if (mGatt != null) {
-                        mGatt.disconnect();
-                        refreshDeviceCache();
-                        mGatt.close();
-                    }
-                    mConnState = DISCONNECTED;
-                    callback.onConnectionFailed(BleErrorCodes.CONNECTION_TIMEOUT, mDevice);
-                    clearAndResetAll();
+                    onConnectionTimeout();
                 }
             });
             msg.obj = mDevice.getAddress();
-            mHandler.sendMessageDelayed(msg, timeoutMills > 0 ? timeoutMills : DEFAULT_TIME_OUT_MILLS);
+            mHandler.sendMessageDelayed(msg, timeoutMillis > 0 ? timeoutMillis : DEFAULT_TIME_OUT_MILLIS);
         }
     }
 
     void disconnect() {
         synchronized (mKeyConnection) {
-            if (mConnState == DISCONNECTED || mGatt == null) {
+            if (isDisconnected() || mGatt == null) {
                 return;
             }
             mGatt.disconnect();
             if (isConnecting()) {
                 // Remove connection timeout message if connection is establishing
                 mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+                mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
                 refreshDeviceCache();
                 mGatt.close();
+                mGatt = null;
+                mCurrentMtu = BleGatt.MTU_MIN;
                 mConnState = DISCONNECTED;
                 BleConnectCallback callback = mConnectCallback;
+                clearAllCallbacks();
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -225,7 +244,6 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         }
                     }
                 });
-                clearAndResetAll();
             }
         }
     }
@@ -295,13 +313,13 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 return;
             }
         }
+        mNotifyCallbackMap.remove(identify);
         mHandler.post(new Runnable() {
             @Override
             public void run() {
                 callback.onNotifyFailed(BleErrorCodes.UNKNOWN, notifyUuid, mDevice);
             }
         });
-        mNotifyCallbackMap.remove(identify);
     }
 
     void disableNotify(UUID serviceUuid, UUID notifyUuid) {
@@ -379,13 +397,13 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         mReadCallbackMap.put(identify, callback);
         // Read data from characteristic
         if (!mGatt.readCharacteristic(characteristic)) {
+            mReadCallbackMap.remove(identify);
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
                     callback.onReadFailed(BleErrorCodes.UNKNOWN, readUuid, mDevice);
                 }
             });
-            mReadCallbackMap.remove(identify);
         }
     }
 
@@ -426,8 +444,8 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     }
 
 
-    void writeByBatch(UUID serviceUuid, UUID writeUuid, byte[] writeData, int lengthPerPackage,
-                      long writeDelay, BleWriteByBatchCallback callback) {
+    void writeByBatch(UUID serviceUuid, UUID writeUuid, byte[] writeData, int lengthPerBatch,
+                      long batchInterval, BleWriteByBatchCallback callback) {
         boolean connected = mGatt != null && isConnected();
         BluetoothGattService service = null;
         BluetoothGattCharacteristic characteristic = null;
@@ -466,7 +484,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         }
 
         // Create a data queue and write it in sequence
-        final Queue<byte[]> queue = BleDataUtils.getBatchData(writeData, lengthPerPackage);
+        final Queue<byte[]> queue = BleDataUtils.getBatchData(writeData, lengthPerBatch);
         if (queue.size() <= 0) return;
         BluetoothGattService gattService = service;
         BluetoothGattCharacteristic gattChar = characteristic;
@@ -477,7 +495,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 // Notify current progress
                 int writtenBatchCount = totalNum - queue.size();
                 // The length of the last batch may be not equal 'lengthPerPackage'
-                int writtenLen = (writtenBatchCount - 1) * lengthPerPackage + data.length;
+                int writtenLen = (writtenBatchCount - 1) * lengthPerBatch + data.length;
                 float progress = writtenLen / (float) writeData.length;
                 callback.onWriteBatchProgress(progress, characteristicUuid, device);
                 final BleWriteCallback c = this;
@@ -493,7 +511,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                             writeData, characteristicUuid, device);
                     return;
                 }
-                if (writeDelay <= 0) {
+                if (batchInterval <= 0) {
                     writeData(gattService, gattChar, next, c);
                 } else {
                     Message msg = Message.obtain(mHandler, new Runnable() {
@@ -508,7 +526,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         }
                     });
                     msg.what = MSG_WHAT_WRITE_DELAY;
-                    mHandler.sendMessageDelayed(msg, writeDelay);
+                    mHandler.sendMessageDelayed(msg, batchInterval);
                 }
             }
 
@@ -516,7 +534,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             public void onWriteFailed(int errCode, byte[] data, UUID characteristicUuid, BleDevice device) {
                 // Failed to sent current pack, so - 1
                 int writtenBatchCount = totalNum - queue.size() - 1;
-                int writtenLen = lengthPerPackage * writtenBatchCount;
+                int writtenLen = lengthPerBatch * writtenBatchCount;
                 callback.onWriteBatchFailed(errCode, writtenLen, writeData, characteristicUuid, device);
             }
         };
@@ -549,13 +567,13 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         mWriteCallbackMap.put(identify, callback);
         // Write data
         if (!characteristic.setValue(data) || !mGatt.writeCharacteristic(characteristic)) {
+            mWriteCallbackMap.remove(identify);
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
                     callback.onWriteFailed(BleErrorCodes.UNKNOWN, data, characteristic.getUuid(), mDevice);
                 }
             });
-            mWriteCallbackMap.remove(identify);
         }
     }
 
@@ -625,12 +643,15 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
         super.onConnectionStateChange(gatt, status, newState);
+        Logger.d("onConnectionStateChange --  status=" + status + "   newState=" + newState);
         String address = gatt.getDevice().getAddress();
         if (mDevice == null || !address.equals(mDevice.getAddress())) {
             return;
         }
         synchronized (mKeyConnection) {
             BleConnectCallback callback = mConnectCallback;
+            boolean connecting = isConnecting();
+            boolean connected = isConnected();
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 switch (newState) {
                     case BluetoothProfile.STATE_CONNECTED:
@@ -638,49 +659,53 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         gatt.discoverServices();
                         break;
                     case BluetoothProfile.STATE_DISCONNECTED:
+                        mHandler.removeCallbacksAndMessages(address);
+                        mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
                         refreshDeviceCache();
                         gatt.close();
-                        mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
-                        int previousState = mConnState;
+                        mGatt = null;
+                        mCurrentMtu = BleGatt.MTU_MIN;
                         mConnState = DISCONNECTED;
+                        clearAllCallbacks();
                         runOrQueueCallback(new Runnable() {
                             @Override
                             public void run() {
-                                if (callback != null && previousState != DISCONNECTED) {
-                                    //The connection has been disconnected
+                                if (callback == null) {
+                                    return;
+                                }
+                                if (connecting) {
+                                    callback.onConnectionFailed(BleErrorCodes.UNKNOWN, mDevice);
+                                } else if (connected) {
                                     callback.onDisconnected(mDevice, status);
                                 }
                             }
                         });
-                        clearAndResetAll();
                         break;
                 }
                 return;
             }
+            boolean disconnectedAbnormally = connected && newState == BluetoothProfile.STATE_DISCONNECTED;
+            mHandler.removeCallbacksAndMessages(address);
+            mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
             refreshDeviceCache();
             gatt.close();
-            boolean connectFailed = isConnecting();
-            boolean disconnectedAbnormally = isConnected() && newState == BluetoothProfile.STATE_DISCONNECTED;
-            if (connectFailed) {
-                mHandler.removeCallbacksAndMessages(address);
-            }
-            if (disconnectedAbnormally) {
-                mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
-            }
+            mGatt = null;
+            mCurrentMtu = BleGatt.MTU_MIN;
             mConnState = DISCONNECTED;
+            clearAllCallbacks();
             runOrQueueCallback(new Runnable() {
                 @Override
                 public void run() {
-                    if (callback != null) {
-                        if (connectFailed) {
-                            callback.onConnectionFailed(BleErrorCodes.UNKNOWN, mDevice);
-                        } else if (disconnectedAbnormally) {
-                            callback.onDisconnected(mDevice, status);
-                        }
+                    if (callback == null) {
+                        return;
+                    }
+                    if (connecting) {
+                        callback.onConnectionFailed(BleErrorCodes.UNKNOWN, mDevice);
+                    } else if (disconnectedAbnormally) {
+                        callback.onDisconnected(mDevice, status);
                     }
                 }
             });
-            clearAndResetAll();
         }
     }
 
@@ -692,33 +717,25 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             return;
         }
         synchronized (mKeyConnection) {
-            // Remove connection timeout message
-            mHandler.removeCallbacksAndMessages(address);
-            boolean success = status == BluetoothGatt.GATT_SUCCESS;
-            // If connecting, notify connection state changed, otherwise return directly
             if (!isConnecting()) {
                 return;
             }
+            mHandler.removeCallbacksAndMessages(address);
+            boolean success = status == BluetoothGatt.GATT_SUCCESS;
             if (success) {
                 mConnState = CONNECTED;
+                BleConnectCallback callback = mConnectCallback;
+                runOrQueueCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (callback != null) {
+                            callback.onConnected(mDevice);
+                        }
+                    }
+                });
             } else {
-                // Disconnect current connection and do not call back BleConnectCallback#onDsiconnected()
-                mConnState = DISCONNECTED;
                 gatt.disconnect();
             }
-            runOrQueueCallback(new Runnable() {
-                @Override
-                public void run() {
-                    if (mConnectCallback == null) {
-                        return;
-                    }
-                    if (success) {
-                        mConnectCallback.onConnected(mDevice);
-                    } else {
-                        mConnectCallback.onConnectionFailed(BleErrorCodes.UNKNOWN, mDevice);
-                    }
-                }
-            });
         }
     }
 
@@ -736,6 +753,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             return;
         }
         BleReadCallback callback = mReadCallbackMap.get(identify);
+        mReadCallbackMap.remove(identify);
         boolean success = status == BluetoothGatt.GATT_SUCCESS;
         byte[] data = characteristic.getValue();
         runOrQueueCallback(new Runnable() {
@@ -749,7 +767,6 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 } else {
                     callback.onReadFailed(BleErrorCodes.UNKNOWN, charUuid, mDevice);
                 }
-                mReadCallbackMap.remove(identify);
             }
         });
     }
@@ -768,6 +785,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             return;
         }
         BleWriteCallback callback = mWriteCallbackMap.get(identify);
+        mWriteCallbackMap.remove(identify);
         boolean success = status == BluetoothGatt.GATT_SUCCESS;
         byte[] data = characteristic.getValue();
         runOrQueueCallback(new Runnable() {
@@ -781,7 +799,6 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 } else {
                     callback.onWriteFailed(BleErrorCodes.UNKNOWN, data, charUuid, mDevice);
                 }
-                mWriteCallbackMap.remove(identify);
             }
         });
     }
@@ -819,11 +836,14 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         if (identify == null) {
             return;
         }
-        final BleNotifyCallback callback = mNotifyCallbackMap.get(identify);
         boolean notifiable = Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
                 || Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
         if (!notifiable) {
             return;
+        }
+        final BleNotifyCallback callback = mNotifyCallbackMap.get(identify);
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            mNotifyCallbackMap.remove(identify);
         }
         runOrQueueCallback(new Runnable() {
             @Override
@@ -835,7 +855,6 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                     callback.onNotifySuccess(charUuid, mDevice);
                 } else {
                     callback.onNotifyFailed(BleErrorCodes.UNKNOWN, charUuid, mDevice);
-                    mNotifyCallbackMap.remove(identify);
                 }
             }
         });
@@ -848,18 +867,19 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         if (mDevice == null || !address.equals(mDevice.getAddress())) {
             return;
         }
+        BleRssiCallback callback = mRssiCallback;
+        mRssiCallback = null;
         runOrQueueCallback(new Runnable() {
             @Override
             public void run() {
-                if (mRssiCallback == null) {
+                if (callback == null) {
                     return;
                 }
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    mRssiCallback.onRssiSuccess(rssi, mDevice);
+                    callback.onRssiSuccess(rssi, mDevice);
                 } else {
-                    mRssiCallback.onRssiFailed(BleErrorCodes.UNKNOWN, mDevice);
+                    callback.onRssiFailed(BleErrorCodes.UNKNOWN, mDevice);
                 }
-                mRssiCallback = null;
             }
         });
     }
@@ -875,18 +895,19 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         if (success) {
             mCurrentMtu = mtu;
         }
+        BleMtuCallback callback = mMtuCallback;
+        mMtuCallback = null;
         runOrQueueCallback(new Runnable() {
             @Override
             public void run() {
-                if (mMtuCallback == null) {
+                if (callback == null) {
                     return;
                 }
                 if (success) {
-                    mMtuCallback.onMtuChanged(mtu, mDevice);
+                    callback.onMtuChanged(mtu, mDevice);
                 } else {
-                    mMtuCallback.onMtuFailed(BleErrorCodes.UNKNOWN, mDevice);
+                    callback.onMtuFailed(BleErrorCodes.UNKNOWN, mDevice);
                 }
-                mMtuCallback = null;
             }
         });
     }
@@ -903,16 +924,13 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
         return null;
     }
 
-    private void clearAndResetAll() {
+    private void clearAllCallbacks() {
         mReadCallbackMap.clear();
         mWriteCallbackMap.clear();
         mNotifyCallbackMap.clear();
         mConnectCallback = null;
         mMtuCallback = null;
         mRssiCallback = null;
-        mGatt = null;
-        // Reset MTU
-        mCurrentMtu = BleGatt.MTU_MIN;
     }
 
     /**
