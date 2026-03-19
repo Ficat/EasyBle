@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
->由于Android12起蓝牙权限等发生变化，故请使用或升级到最新版本（3.1.x）
+>由于Android12起蓝牙权限等发生变化，故请使用或升级到最新版本（3.2.x）
 ## Gradle dependency
 ```gradle
 allprojects {
@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.4'
+    implementation 'com.github.Ficat:EasyBle:v3.2.0'
 }
 ```
 
@@ -27,7 +27,7 @@ dependencies {
         // 牙权限，因此这一步不可避免。你可以通过BleManager#getBleRequiredPermissions()获取BLE所需所有权
         // 限
         List<String> permissions = BleManager.getBleRequiredPermissions();
-        if (list.size() > 0) { // 低版本可能不需要任何权限，所有此处检查一下
+        if (list.size() > 0) { // 低版本可能不需要任何权限，所以此处检查一下
             requestPermissions(permissions);
         }
 
@@ -49,12 +49,12 @@ dependencies {
         // Scan/connection不是必须的，若不设置，那么扫描或连接就会使用默认参数
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
-                .scanPeriod(10000)
+                .scanPeriod(10000)// 扫描超时
                 .scanDeviceName(null);
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectionPeriod(12000);
+                .connectionPeriod(12000);// 连接超时
 
         BleManager manager = BleManager
                 .getInstance()
@@ -117,7 +117,8 @@ dependencies {
 ```
 
 ### 4.连接
- 你可以使用BleDevice对象或mac地址连接设备
+ 你可以使用BleDevice对象或mac地址连接设备，如同扫描一样，现在连接也需要权限<br>
+**注意：** Android 10 以下版本一次只允许发起一个连接请求，并将所有后续请求排队等待处理。Android 10 及更高版本则采用批量处理的方式，将连接请求分组执行。这意味着，在 Android 10 以下版本中，我们必须等待前一个连接的回调完成后才能发起新的连接请求
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
@@ -153,6 +154,9 @@ dependencies {
                         break;
                     case BleErrorCodes.CONNECTION_CANCELED:
                         // 连接已取消
+                        break;
+                    case BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED:
+                        // 连接早已开始或早已成功
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
@@ -346,9 +350,14 @@ notify和indicate都使用以下方法
 |isConnected(String address)|是否已连接到指定mac的设备|
 |isConnecting(String address)|是否正在与指定设备进行连接|
 |getConnectedDevices()|获取已连接设备列表|
+|getConnectingDevices()|获取正在连接的设备列表|
 |getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null。 [参见示例](README_MORE_CN.md)|
 |*supportBle(Context context)*|设备是否支持BLE|
 |*isBluetoothOn()*|蓝牙是否已打开|
+|*isCharacteristicReadable()*|特征是否可读？|
+|*isCharacteristicWritable()*|特征是否可写？|
+|*isCharacteristicNotifiable()*|特征是否支持Notification|
+|*isCharacteristicIndicative()*|特征是否支持Indication|
 |*isAddressValid(String address)*|是否为合法的mac地址|
 |*getValidMtuRange()*|获取有效的MTU范围，返回int数组，数组长度为2，分别为MTU最小值、MTU最大值|
 |*getBleRequiredPermissions()*|获取所有BLE所需权限，低版本可能无需任何权限，因此不要忘记检查permissionList长度|

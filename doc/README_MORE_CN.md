@@ -40,10 +40,10 @@
            List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
            for (BluetoothGattCharacteristic ch: characteristics){
                // 检查该特征的属性
-               boolean writable = BluetoothGattUtils.isCharacteristicWritable(ch);
-               boolean readable = BluetoothGattUtils.isCharacteristicReadable(ch);
-               boolean notifiable = BluetoothGattUtils.isCharacteristicNotifiable(ch);
-               boolean indicative = BluetoothGattUtils.isCharacteristicIndicative(ch);
+               boolean writable = BleManager.isCharacteristicWritable(ch);
+               boolean readable = BleManager.isCharacteristicReadable(ch);
+               boolean notifiable = BleManager.isCharacteristicNotifiable(ch);
+               boolean indicative = BleManager.isCharacteristicIndicative(ch);
            }
        }
 ```

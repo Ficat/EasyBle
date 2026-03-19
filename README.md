@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle is a framework used for android BLE, it makes android Ble operation simpler and supports basic BLE operations
->On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.1.x)
+>On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.2.x)
 
 [中文文档](doc/README_CN.md)
 
@@ -13,7 +13,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.1.4'
+    implementation 'com.github.Ficat:EasyBle:v3.2.0'
 }
 ```
 
@@ -54,19 +54,19 @@ dependencies {
         // configuration will be applied
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
-                .scanPeriod(10000)
+                .scanPeriod(10000)// scan timeout
                 .scanDeviceName(null);
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
                 .newInstance()
-                .connectionPeriod(12000);
+                .connectionPeriod(12000);// connection timeout
 
         BleManager bleManager = BleManager
                         .getInstance()
                         .setScanOptions(scanOptions)
                         .setConnectionOptions(connOptions)
                         .setLog(true, "TAG")
-                        .init(this.getApplication());//Init() requires context, to avoid memory leak, you'd better use Application instance
+                        .init(this.getApplication());// Init() requires context, to avoid memory leak, you'd better use Application instance
 
 ```
 
@@ -124,7 +124,8 @@ Once target remote device has been discovered you can use stopScan() to stop sca
 ```
 
 ### 4.Connect
-You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.
+You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.<br>
+**Note:** Android versions below 10 allow only one connection request at a time and queue all subsequent requests. In Android 10 and higher, the system groups connection requests for batched execution. That means, if Android versions below 10, we must wait for a callback for a previous connection before we initiate a new connection request
 ```java
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
@@ -160,6 +161,9 @@ You can connect to remote device by device address or BleDevice object. Like sca
                         break;
                     case BleErrorCodes.CONNECTION_CANCELED:
                         // Connection canceled
+                        break;
+                    case BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED:
+                        // Connection already started or established
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
@@ -354,9 +358,14 @@ You must call destroy() to release some resources after BLE communication end
 |isConnected(String address)|Check if the local bluetooth has connected to the remote device|
 |isConnecting(String address)|Check if local device is connecting with the remote device|
 |getConnectedDevices()|Get connected devices|
+|getConnectingDevices()|Get connecting devices|
 |getDeviceServices(String address)|Get all services that remote device supports,note that it may return null. [See example](doc/README_MORE.md)|
 |*supportBle(Context context)*|Check if this device supports ble|
 |*isBluetoothOn()*|Check if local bluetooth is enabled|
+|*isCharacteristicReadable()*|Is the characteristic readable?|
+|*isCharacteristicWritable()*|Is the characteristic writable?|
+|*isCharacteristicNotifiable()*|Does the characteristic support notification?|
+|*isCharacteristicIndicative()*|Does the characteristic support indication?|
 |*isAddressValid(String address)*|Check if the address is valid|
 |*getValidMtuRange()*|Get valid MTU range, this method returns an array(int[2], int[0]= MinMtu, int[1]=MaxMtu) |
 |*getBleRequiredPermissions()*|Get all BLE required permissions. Lower version may not require any permissions, so do not forget to check the length of permissionList|
