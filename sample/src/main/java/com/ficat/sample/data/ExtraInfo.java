@@ -3,12 +3,13 @@ package com.ficat.sample.data;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import java.util.Arrays;
+import com.ficat.easyble.scan.BleScanRecord;
 
 public class ExtraInfo implements Parcelable {
     private String note;
     private int rssi;
-    private byte[] scanRecordBytes;
+
+    private BleScanRecord bleScanRecord;
 
     public ExtraInfo() {
 
@@ -30,20 +31,20 @@ public class ExtraInfo implements Parcelable {
         this.rssi = rssi;
     }
 
-    public byte[] getScanRecordBytes() {
-        return scanRecordBytes;
+    public BleScanRecord getBleScanRecord() {
+        return bleScanRecord;
     }
 
-    public void setScanRecordBytes(byte[] scanRecordBytes) {
-        this.scanRecordBytes = scanRecordBytes;
+    public void setBleScanRecord(BleScanRecord bleScanRecord) {
+        this.bleScanRecord = bleScanRecord;
     }
 
     @Override
     public String toString() {
-        return "Extra{" +
+        return "ExtraInfo{" +
                 "note='" + note + '\'' +
                 ", rssi=" + rssi +
-                ", scanRecordBytes=" + Arrays.toString(scanRecordBytes) +
+                ", bleScanRecord=" + bleScanRecord +
                 '}';
     }
 
@@ -54,21 +55,21 @@ public class ExtraInfo implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(this.note);
-        dest.writeInt(this.rssi);
-        dest.writeByteArray(scanRecordBytes);
+        dest.writeString(note);
+        dest.writeInt(rssi);
+        dest.writeParcelable(bleScanRecord, flags);
     }
 
     protected ExtraInfo(Parcel in) {
-        this.note = in.readString();
-        this.rssi = in.readInt();
-        this.scanRecordBytes = in.createByteArray();
+        note = in.readString();
+        rssi = in.readInt();
+        bleScanRecord = in.readParcelable(BleScanRecord.class.getClassLoader());
     }
 
     public static final Creator<ExtraInfo> CREATOR = new Creator<ExtraInfo>() {
         @Override
-        public ExtraInfo createFromParcel(Parcel source) {
-            return new ExtraInfo(source);
+        public ExtraInfo createFromParcel(Parcel in) {
+            return new ExtraInfo(in);
         }
 
         @Override

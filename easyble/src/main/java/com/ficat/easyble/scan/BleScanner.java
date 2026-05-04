@@ -39,6 +39,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     private String mDeviceName;
     private String mDeviceAddress;
     private UUID[] mServiceUuids;
+    private boolean mFuzzyDeviceName;
     private volatile boolean mScanning;
     private final Handler mHandler;
     private final Runnable mScanTimeoutRunnable = new Runnable() {
@@ -60,8 +61,8 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
 
     @Override
     public void startScan(long scanPeriod, String scanDeviceName, String scanDeviceAddress,
-                          UUID[] scanServiceUuids, final BleScanCallback callback) {
-        if (!BleManager.isBluetoothOn()) {
+                          UUID[] scanServiceUuids, boolean fuzzyDeviceName, final BleScanCallback callback) {
+        if (!BleManager.isBluetoothEnabled()) {
             callback.onScanFailed(BleErrorCodes.BLUETOOTH_OFF);
             return;
         }
@@ -78,6 +79,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             mDeviceName = scanDeviceName;
             mDeviceAddress = scanDeviceAddress;
             mServiceUuids = scanServiceUuids;
+            mFuzzyDeviceName = !TextUtils.isEmpty(scanDeviceName) && fuzzyDeviceName;
             mScanning = sdkVersionLowerThan21() ? scanByOldApi() : scanByNewApi();
             if (mBleScanCallback != null) {
                 if (mScanning) {
@@ -98,7 +100,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     }
 
     @SuppressWarnings("NewApi")
-    private void stopScan(boolean stopNormally) {
+    private void stopScan(boolean callbackScanFinished) {
         synchronized (this) {
             if (mBluetoothAdapter == null || !mScanning) {
                 return;
@@ -113,9 +115,14 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
                     mBluetoothLeScanner.stopScan(mScanCallback);
                 }
             }
+            // reset params
             mScanning = false;
+            mFuzzyDeviceName = false;
+            mDeviceName = null;
+            mDeviceAddress = null;
+            mServiceUuids = null;
             if (mBleScanCallback != null) {
-                if (stopNormally) {
+                if (callbackScanFinished) {
                     mBleScanCallback.onScanFinished();
                 }
                 mBleScanCallback = null;
@@ -137,8 +144,8 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     }
 
     @Override
-    public void destroy() {
-        stopScan();
+    public void destroy(boolean callbackEnabledOnDestroy) {
+        stopScan(callbackEnabledOnDestroy);
         // Remove scan period delayed message
         mHandler.removeCallbacksAndMessages(null);
     }
@@ -151,8 +158,16 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
                 @Override
                 public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
-                    if (!TextUtils.isEmpty(mDeviceName) && !mDeviceName.equals(device.getName())) {
-                        return;
+                    String name = device.getName();
+                    if (!TextUtils.isEmpty(mDeviceName)) {
+                        // Exact device name
+                        if (!mFuzzyDeviceName && !mDeviceName.equals(name)) {
+                            return;
+                        }
+                        // Fuzzy device name
+                        if (mFuzzyDeviceName && (TextUtils.isEmpty(name) || !name.contains(mDeviceName))) {
+                            return;
+                        }
                     }
                     if (!TextUtils.isEmpty(mDeviceAddress) && !mDeviceAddress.equals(device.getAddress())) {
                         return;
@@ -182,6 +197,10 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
                     if (!hasResultByFilterUuids(result)) {
                         return;
                     }
+                    String name = result.getDevice().getName();
+                    if (mFuzzyDeviceName && !TextUtils.isEmpty(mDeviceName) && (TextUtils.isEmpty(name) || !name.contains(mDeviceName))) {
+                        return;
+                    }
                     if (mBleScanCallback == null) {
                         return;
                     }
@@ -199,24 +218,29 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
 
                 @Override
                 public void onScanFailed(int errorCode) {
+                    BleScanCallback callback = null;
                     if (mScanning && mBleScanCallback != null) {
-                        switch (errorCode) {
-                            case ScanCallback.SCAN_FAILED_ALREADY_STARTED:
-                                mBleScanCallback.onScanFailed(BleErrorCodes.SCAN_ALREADY_STARTED);
-                                break;
-                            case ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY:
-                                mBleScanCallback.onScanFailed(BleErrorCodes.SCAN_TOO_FREQUENTLY);
-                                break;
-                            case ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED:
-                            case ScanCallback.SCAN_FAILED_INTERNAL_ERROR:
-                            case ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED:
-                            case ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES:
-                            default:
-                                mBleScanCallback.onScanFailed(BleErrorCodes.UNKNOWN);
-                                break;
-                        }
+                        callback = mBleScanCallback;
                     }
                     stopScan(false);
+                    if (callback == null) {
+                        return;
+                    }
+                    switch (errorCode) {
+                        case ScanCallback.SCAN_FAILED_ALREADY_STARTED:
+                            callback.onScanFailed(BleErrorCodes.SCAN_ALREADY_STARTED);
+                            break;
+                        case ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY:
+                            callback.onScanFailed(BleErrorCodes.SCAN_TOO_FREQUENTLY);
+                            break;
+                        case ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED:
+                        case ScanCallback.SCAN_FAILED_INTERNAL_ERROR:
+                        case ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED:
+                        case ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES:
+                        default:
+                            callback.onScanFailed(BleErrorCodes.UNKNOWN);
+                            break;
+                    }
                 }
             };
         }
@@ -226,8 +250,10 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
 
         boolean isScreenOff = !Utils.isScreenOn(BleManager.getInstance().getContext());
         boolean isBackground = !Utils.isForeground(BleManager.getInstance().getContext());
-        boolean hasFilterServiceUuids = mServiceUuids != null && mServiceUuids.length > 0;
-        boolean hasFilter = hasFilterServiceUuids || !TextUtils.isEmpty(mDeviceName) || !TextUtils.isEmpty(mDeviceAddress);
+        boolean filterServiceUuids = mServiceUuids != null && mServiceUuids.length > 0;
+        boolean filterExactName = !mFuzzyDeviceName && !TextUtils.isEmpty(mDeviceName);
+        boolean filterAddress = !TextUtils.isEmpty(mDeviceAddress);
+        boolean hasFilter = filterServiceUuids || filterExactName || filterAddress;
 
         if (isScreenOff && !hasFilter) {
             Logger.w("The screen is off, the current scan has no filters, it may be suspended until the screen is turned on again");
@@ -239,9 +265,9 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
 
         List<ScanFilter> scanFilters = new ArrayList<>();
         ScanFilter filter = new ScanFilter.Builder()
-                .setDeviceName(mDeviceName)
+                .setDeviceName(filterExactName ? mDeviceName : null)
                 .setDeviceAddress(mDeviceAddress)
-                .setServiceUuid(hasFilterServiceUuids ? new ParcelUuid(mServiceUuids[0]) : null)
+                .setServiceUuid(filterServiceUuids ? new ParcelUuid(mServiceUuids[0]) : null)
                 .build();
         scanFilters.add(filter);
 

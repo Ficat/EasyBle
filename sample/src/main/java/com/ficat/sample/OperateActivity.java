@@ -61,6 +61,9 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
     private void initData() {
         device = getIntent().getParcelableExtra(KEY_DEVICE_INFO);
+        if (device == null) {
+            finish();
+        }
         Parcelable p = device.getParcelableExtra();
         if (p instanceof ExtraInfo) {
             ExtraInfo e = (ExtraInfo) p;
@@ -118,7 +121,8 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
 
         tvDeviceName.setText(getResources().getString(R.string.device_name_prefix) + device.getName());
         tvAddress.setText(getResources().getString(R.string.device_address_prefix) + device.getAddress());
-        updateConnectionStateUi();
+
+        updateConnectionStateUi(ConnStatus.DISCONNECTED);
     }
 
     private void initElv() {
@@ -154,16 +158,24 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                 BleManager.isCharacteristicIndicative(charInfo)) ? View.VISIBLE : View.GONE);
     }
 
-    private void updateConnectionStateUi() {
-        String state;
-        boolean isConnected = BleManager.getInstance().isConnected(device.getAddress());
-        boolean isConnecting = BleManager.getInstance().isConnecting(device.getAddress());
-        if (isConnected) {
-            state = getResources().getString(R.string.connection_state_connected);
-        } else if (isConnecting) {
-            state = getResources().getString(R.string.connection_state_connecting);
-        } else {
-            state = getResources().getString(R.string.connection_state_disconnected);
+    private enum ConnStatus {
+        DISCONNECTED, CONNECTING, CONNECTED
+    }
+
+    private void updateConnectionStateUi(ConnStatus connStatus) {
+        String state = "";
+        boolean isConnected = connStatus == ConnStatus.CONNECTED;
+        boolean isConnecting = connStatus == ConnStatus.CONNECTING;
+        switch (connStatus) {
+            case DISCONNECTED:
+                state = getString(R.string.connection_state_disconnected);
+                break;
+            case CONNECTING:
+                state = getString(R.string.connection_state_connecting);
+                break;
+            case CONNECTED:
+                state = getString(R.string.connection_state_connected);
+                break;
         }
         pb.setVisibility(isConnecting ? View.VISIBLE : View.INVISIBLE);
         tvConnectionState.setText(state);
@@ -252,7 +264,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         @Override
         public void onConnectionStarted(BleDevice device) {
             OperateActivity.this.device = device;
-            updateConnectionStateUi();
+            updateConnectionStateUi(ConnStatus.CONNECTING);
             Logger.d("onConnectionStarted");
         }
 
@@ -260,14 +272,14 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
         public void onConnected(BleDevice device) {
             reset();
             addDeviceInfoDataAndUpdate();
-            updateConnectionStateUi();
+            updateConnectionStateUi(ConnStatus.CONNECTED);
             Logger.d("onConnected");
         }
 
         @Override
         public void onDisconnected(BleDevice device, int status) {
             reset();
-            updateConnectionStateUi();
+            updateConnectionStateUi(ConnStatus.DISCONNECTED);
             Logger.d("onDisconnected");
         }
 
@@ -303,7 +315,7 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
             if (errCode != BleErrorCodes.CONNECTION_ALREADY_STARTED_OR_ESTABLISHED) {
                 reset();
             }
-            updateConnectionStateUi();
+            updateConnectionStateUi(ConnStatus.DISCONNECTED);
         }
     };
 

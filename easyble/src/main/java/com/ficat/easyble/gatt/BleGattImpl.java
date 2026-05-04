@@ -40,7 +40,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     @Override
     public void connect(long timeoutMillis, BleDevice device, BleConnectCallback callback) {
         // Check bluetooth and permission state
-        boolean bluetoothOff = !BleManager.isBluetoothOn();
+        boolean bluetoothOff = !BleManager.isBluetoothEnabled();
         boolean noPermissions = !BleManager.connectionPermissionGranted(BleManager.getInstance().getContext());
         if (bluetoothOff || noPermissions) {
             int code;
@@ -108,7 +108,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     }
 
     @Override
-    public void disconnect(String address) {
+    public void disconnect(String address, boolean closeGattImmediately) {
         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
             return;
         }
@@ -116,14 +116,14 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
         if (communicator == null) {
             return;
         }
-        communicator.disconnect();
+        communicator.disconnect(closeGattImmediately, true);
     }
 
     @Override
-    public void disconnectAll() {
+    public void disconnectAll(boolean closeGattImmediately) {
         mMainHandler.removeCallbacksAndMessages(null);
-        for (String address : mBleGattCommunicatorMap.keySet()) {
-            disconnect(address);
+        for (BleGattCommunicator communicator : mBleGattCommunicatorMap.values()) {
+            communicator.disconnect(closeGattImmediately, true);
         }
     }
 
@@ -290,8 +290,10 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     }
 
     @Override
-    public void destroy() {
-        disconnectAll();
+    public void destroy(boolean callbackEnabledOnDestroy) {
+        for (BleGattCommunicator communicator : mBleGattCommunicatorMap.values()) {
+            communicator.disconnect(true, callbackEnabledOnDestroy);
+        }
         mBleGattCommunicatorMap.clear();
     }
 }

@@ -3,12 +3,12 @@
     android:layout_width="match_parent"
     android:layout_height="50dp"
     android:background="@drawable/selector_item_press"
-    android:paddingLeft="12dp"
-    android:paddingRight="12dp">
+    android:paddingLeft="10dp"
+    android:paddingRight="10dp">
 
     <TextView
         android:id="@+id/tv_name"
-        android:layout_width="280dp"
+        android:layout_width="180dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
         android:ellipsize="end"
@@ -17,7 +17,7 @@
 
     <TextView
         android:id="@+id/tv_address"
-        android:layout_width="280dp"
+        android:layout_width="180dp"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_marginBottom="5dp"
@@ -26,11 +26,24 @@
         android:textSize="12sp" />
 
     <TextView
-        android:id="@+id/tv_connection_state"
+        android:id="@+id/tv_rssi"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="12dp"
+        android:layout_toEndOf="@+id/tv_address"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tv_connection_state"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
         android:layout_alignParentRight="true"
         android:layout_centerVertical="true"
+        android:background="@drawable/selector_btn_common"
+        android:gravity="center"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:text="@string/operate"
         android:textSize="12sp" />
 </RelativeLayout>

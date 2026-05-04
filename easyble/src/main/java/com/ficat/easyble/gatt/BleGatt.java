@@ -24,9 +24,9 @@ public interface BleGatt {
 
     void connect(long timeoutMillis, BleDevice device, BleConnectCallback callback);
 
-    void disconnect(String address);
+    void disconnect(String address, boolean closeGattImmediately);
 
-    void disconnectAll();
+    void disconnectAll(boolean closeGattImmediately);
 
     void notify(BleDevice device, UUID serviceUuid, UUID notifyUuid, BleNotifyCallback callback);
 
@@ -53,5 +53,5 @@ public interface BleGatt {
 
     boolean isConnected(String address);
 
-    void destroy();
+    void destroy(boolean callbackEnabledOnDestroy);
 }

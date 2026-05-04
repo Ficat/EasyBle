@@ -45,6 +45,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
     private static final int CONNECTED = 3;
 
     private static final long DEFAULT_TIME_OUT_MILLIS = 10000;//default 10s
+    private static final int MSG_WHAT_CONNECTION_TIMEOUT = 101;
     private static final int MSG_WHAT_WRITE_DELAY = 100;
 
     private final Handler mHandler;
@@ -113,7 +114,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             }
             boolean connecting = isConnecting();
             boolean connected = isConnected();
-            mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
             mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
             if (mGatt != null) {
                 mGatt.disconnect();
@@ -145,7 +146,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             if (!isConnecting()) {
                 return;
             }
-            mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+            mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
             mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
             if (mGatt != null) {
                 mGatt.disconnect();
@@ -214,20 +215,22 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                     onConnectionTimeout();
                 }
             });
-            msg.obj = mDevice.getAddress();
+            msg.what = MSG_WHAT_CONNECTION_TIMEOUT;
             mHandler.sendMessageDelayed(msg, timeoutMillis > 0 ? timeoutMillis : DEFAULT_TIME_OUT_MILLIS);
         }
     }
 
-    void disconnect() {
+    void disconnect(boolean closeGattImmediatelyIfConnected, boolean callbackEnabled) {
         synchronized (mKeyConnection) {
             if (isDisconnected() || mGatt == null) {
                 return;
             }
             mGatt.disconnect();
-            if (isConnecting()) {
+            boolean isConnecting = isConnecting();
+            boolean shouldCloseGattOnConnected = isConnected() && closeGattImmediatelyIfConnected;
+            if (isConnecting || shouldCloseGattOnConnected) {
                 // Remove connection timeout message if connection is establishing
-                mHandler.removeCallbacksAndMessages(mDevice.getAddress());
+                mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
                 mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
                 refreshDeviceCache();
                 mGatt.close();
@@ -236,11 +239,19 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 mConnState = DISCONNECTED;
                 BleConnectCallback callback = mConnectCallback;
                 clearAllCallbacks();
+                if (!callbackEnabled) {
+                    return;
+                }
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        if (callback != null) {
+                        if (callback == null) {
+                            return;
+                        }
+                        if (isConnecting) {
                             callback.onConnectionFailed(BleErrorCodes.CONNECTION_CANCELED, mDevice);
+                        } else {
+                            callback.onDisconnected(mDevice, BluetoothGatt.GATT_SUCCESS);
                         }
                     }
                 });
@@ -659,7 +670,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                         gatt.discoverServices();
                         break;
                     case BluetoothProfile.STATE_DISCONNECTED:
-                        mHandler.removeCallbacksAndMessages(address);
+                        mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
                         mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
                         refreshDeviceCache();
                         gatt.close();
@@ -685,7 +696,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
                 return;
             }
             boolean disconnectedAbnormally = connected && newState == BluetoothProfile.STATE_DISCONNECTED;
-            mHandler.removeCallbacksAndMessages(address);
+            mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
             mHandler.removeMessages(MSG_WHAT_WRITE_DELAY);
             refreshDeviceCache();
             gatt.close();
@@ -720,7 +731,7 @@ public final class BleGattCommunicator extends BluetoothGattCallback {
             if (!isConnecting()) {
                 return;
             }
-            mHandler.removeCallbacksAndMessages(address);
+            mHandler.removeMessages(MSG_WHAT_CONNECTION_TIMEOUT);
             boolean success = status == BluetoothGatt.GATT_SUCCESS;
             if (success) {
                 mConnState = CONNECTED;

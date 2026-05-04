@@ -1,9 +1,9 @@
 <resources>
     <string name="app_name">EasyBle</string>
 
-    <string name="request_permissions">Request BLE Permission</string>
-    <string name="enable_bluetooth">Enable Bluetooth</string>
-    <string name="start_scan">Scan</string>
+    <string name="request_permissions">请求BLE权限</string>
+    <string name="enable_bluetooth">打开蓝牙</string>
+    <string name="start_scan">开始扫描</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="disconnect_all">Disconnect All</string>
@@ -13,8 +13,9 @@
     <string name="read">Read</string>
     <string name="write">Write</string>
     <string name="write_by_batch">Write by batch</string>
-    <string name="operate">点击进入操作</string>
+    <string name="operate">进入操作页</string>
     <string name="notify_indicate">notify/indicate</string>
+    <string name="confirm">确认</string>
 
     <string name="connection_state_connecting">连接中</string>
     <string name="connection_state_connected">已连接</string>
@@ -23,6 +24,36 @@
     <string name="device_name_prefix">设备名:&#160;&#160;</string>
     <string name="device_address_prefix">MAC地址:&#160;&#160;</string>
     <string name="device_connection_state_prefix">连接状态:&#160;&#160;</string>
+    <string name="device_rssi_suffix">dBm</string>
+
+    <string name="advertise_data">广播包</string>
+    <string name="advertise_title_device_type">Device Type:&#160;&#160;</string>
+    <string name="advertise_title_flag">Flags:&#160;&#160;</string>
+    <string name="advertise_title_service_uuid">Service UUID:&#160;&#160;</string>
+    <string name="advertise_title_manufacturer_data">Manufacturer Data:&#160;&#160;</string>
+    <string name="advertise_content_device_type_classic">Classic</string>
+    <string name="advertise_content_device_type_le">LE-Only</string>
+    <string name="advertise_content_device_type_dual">Dual</string>
+    <string name="advertise_content_device_type_unknown">Unknown</string>
+    <string name="advertise_content_unknown">Unknown</string>
+    <string name="advertise_content_flag_le_limited_discoverable">LE Limited Discoverable</string>
+    <string name="advertise_content_flag_le_general_discoverable">LE General Discoverable</string>
+    <string name="advertise_content_flag_br_edr_not_supported">BR/EDR Not Supported</string>
+    <string name="advertise_content_flag_simultaneous_le_and_bredr">Simultaneous LE and BR/EDR</string>
+    <string name="advertise_content_manufacturer_id">Company:Reserved ID</string>
+
+    <string name="scan_filter_config_title">扫描条件配置</string>
+    <string name="scan_filter_name">设备名:</string>
+    <string name="scan_filter_address">地址:</string>
+    <string name="scan_filter_uuid">UUID:</string>
+    <string name="scan_filter_save">保存</string>
+    <string name="scan_filter_modify">修改</string>
+    <string name="scan_filter_hint_name">请输入设备名</string>
+    <string name="scan_filter_hint_address">请输入设备地址</string>
+    <string name="scan_filter_hint_uuid">请输入服务UUID</string>
+    <string name="scan_filter_fuzzy">模糊</string>
+    <string name="scan_filter_invalid_uuid_tips">invalid uuid</string>
+    <string name="scan_filter_invalid_address_tips">invalid address</string>
 
     <string name="current_operate_uuid">当前操作的UUID</string>
     <string name="read_result">读取操作结果</string>
@@ -46,4 +77,5 @@
     <string name="tips_bluetooth_off">蓝牙已关闭</string>
     <string name="tips_request_ble_permissions">请先申请蓝牙所需权限</string>
     <string name="tips_enable_bluetooth">请先打开蓝牙</string>
+    <string name="tips_save_scan_filter">请先保存扫描条件配置</string>
 </resources>

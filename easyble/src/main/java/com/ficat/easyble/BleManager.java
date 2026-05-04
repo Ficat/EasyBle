@@ -3,6 +3,7 @@ package com.ficat.easyble;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -27,6 +28,7 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScan;
 import com.ficat.easyble.scan.BleScanAccessor;
 import com.ficat.easyble.scan.BleScanCallback;
+import com.ficat.easyble.scan.BleScanRecord;
 import com.ficat.easyble.utils.BluetoothGattUtils;
 import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.utils.Utils;
@@ -57,10 +59,8 @@ public final class BleManager {
             Logger.d("You have called init() already!");
             return this;
         }
-        if (context instanceof Activity) {
-            Logger.w("Activity Leak Risk: " + context.getClass().getName());
-        }
-        mContext = context;
+        Context appContext = (context instanceof Application) ? context : context.getApplicationContext();
+        mContext = appContext == null ? context : appContext;
         registerBleReceiver();
         mScan = BleScanAccessor.newBleScan(new AccessKey());
         mGatt = BleGattAccessor.newBleGatt(new AccessKey());
@@ -117,7 +117,8 @@ public final class BleManager {
         if (Build.VERSION.SDK_INT >= 24 && !Utils.isGpsOn(mContext)) {
             Logger.i("You'd better turn on GPS to avoid that scan doesn't work");
         }
-        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress, options.scanServiceUuids, callback);
+        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
+                options.scanServiceUuids, options.fuzzyDeviceName, callback);
     }
 
     /**
@@ -187,15 +188,28 @@ public final class BleManager {
      * @param address remote device address
      */
     public void disconnect(String address) {
+        disconnect(address, false);
+    }
+
+    /**
+     * Disconnect from the target device. That means we will disconnect an established
+     * connection, or cancels a connection attempt currently in progress.
+     *
+     * @param address              remote device address
+     * @param closeGattImmediately whether to close {@link  android.bluetooth.BluetoothGatt}
+     *                             immediately without waiting for the system disconnection
+     *                             callback if the device is already connected.
+     */
+    public void disconnect(String address, boolean closeGattImmediately) {
         checkBluetoothAddress(address);
-        mGatt.disconnect(address);
+        mGatt.disconnect(address, closeGattImmediately);
     }
 
     /**
      * Disconnect all connected devices
      */
     public void disconnectAll() {
-        mGatt.disconnectAll();
+        mGatt.disconnectAll(false);
     }
 
     /**
@@ -394,21 +408,53 @@ public final class BleManager {
     }
 
     /**
-     * Once you finish bluetooth, call this method to release some resources.
+     * Releases all resources held by BleManager.
      * <p>
-     * Note that if you want to use BleManager again, you must call init()
-     * again before that
-     *
-     * @see BleManager#init(Context)
+     * Note that after calling this method, all states and params will be reset, include
+     * the {@link #mContext}, it will be set to null, so if you want to reuse BleManger,
+     * do not forget to call {@link #init(Context)} again.
+     * </p>
      */
     public void destroy() {
+        destroy(false, false);
+    }
+
+    /**
+     * Releases all resources held by BleManager.
+     * <p>
+     * Note that after calling this method, all states and params will be reset, include
+     * the {@link #mContext}, it will be set to null, so if you want to reuse BleManger,
+     * do not forget to call {@link #init(Context)} again.
+     * </p>
+     *
+     * @param scanCallbacksEnabledOnDestroy whether scan-callbacks should be invoked during
+     *                                      the destroy process. If false, scan-calls will
+     *                                      be cleared and not be invoked. If true, callbacks
+     *                                      will be invoked. Usually, in these callback, we
+     *                                      will perform some operations such as updating UI
+     *                                      and rescanning. Before doing so, especially
+     *                                      scanCallbacksEnabledOnDestroy is true, we must
+     *                                      ensure BleManger is not destroyed by checking
+     *                                      that {@link #getContext()} does not return null.
+     * @param gattCallbacksEnabledOnDestroy whether gatt-callbacks should be invoked during
+     *                                      the destroy process. If false, gatt-callbacks
+     *                                      will be cleared and not be invoked. If true,
+     *                                      callbacks will be invoked. Usually, in these
+     *                                      callback, we will perform some operations such
+     *                                      as updating UI and reconnecting. Before doing so,
+     *                                      especially gattCallbacksEnabledOnDestroy is true,
+     *                                      we must ensure BleManger is not destroyed by
+     *                                      checking that {@link #getContext()} does not
+     *                                      return null.
+     */
+    public void destroy(boolean scanCallbacksEnabledOnDestroy, boolean gattCallbacksEnabledOnDestroy) {
         unregisterBleReceiver();
         if (mGatt != null) {
-            mGatt.destroy();
+            mGatt.destroy(gattCallbacksEnabledOnDestroy);
             mGatt = null;
         }
         if (mScan != null) {
-            mScan.destroy();
+            mScan.destroy(scanCallbacksEnabledOnDestroy);
             mScan = null;
         }
         mScanOptions = null;
@@ -449,7 +495,7 @@ public final class BleManager {
             throw new IllegalArgumentException("Request code cannot be negative");
         }
         if (!connectionPermissionGranted(activity)) {
-            Logger.i("Android12 or higher, BleManager#enableBluetooth(Activity,int) requires the " +
+            Logger.w("Android12 or higher, BleManager#enableBluetooth(Activity,int) requires the " +
                     "permission 'android.permission.BLUETOOTH_CONNECT'");
             return false;
         }
@@ -470,10 +516,16 @@ public final class BleManager {
      * granted by user.
      * <p>
      * Note that a request dialog may still show when you call this method, due to
-     * some special Android devices' system may have been modified by manufacturers
+     * some special Android devices' system may have been modified by manufacturers.
+     * </p>
+     * <p>
+     * On Android 13+ devices, it doesn't work
+     * </p>>
      *
      * @param enable enable or disable local bluetooth
+     * @deprecated Use {@linkplain #enableBluetooth(Activity, int)} instead.
      */
+    @Deprecated
     public static void toggleBluetooth(boolean enable) {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) {
@@ -498,8 +550,19 @@ public final class BleManager {
      * Return true if local bluetooth is enabled at present
      *
      * @return true if local bluetooth is turned on
+     * @deprecated Use {@linkplain #isBluetoothEnabled()} instead.
      */
+    @Deprecated
     public static boolean isBluetoothOn() {
+        return isBluetoothEnabled();
+    }
+
+    /**
+     * Return true if local bluetooth is enabled at present
+     *
+     * @return true if local bluetooth is turned on
+     */
+    public static boolean isBluetoothEnabled() {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         return adapter != null && adapter.isEnabled();
     }
@@ -509,8 +572,20 @@ public final class BleManager {
      *
      * @param address mac address
      * @return true if the address is valid
+     * @deprecated Use {@linkplain #isValidAddress(String)} instead.
      */
+    @Deprecated
     public static boolean isAddressValid(String address) {
+        return isValidAddress(address);
+    }
+
+    /**
+     * Check if the address is valid
+     *
+     * @param address mac address
+     * @return true if the address is valid
+     */
+    public static boolean isValidAddress(String address) {
         return BluetoothAdapter.checkBluetoothAddress(address);
     }
 
@@ -551,6 +626,25 @@ public final class BleManager {
      */
     public static int[] getValidMtuRange() {
         return new int[]{BleGatt.MTU_MIN, BleGatt.MTU_MAX};
+    }
+
+    /**
+     * Get default max connection num
+     *
+     * @return max connection num
+     */
+    public static int getDefaultMaxConnectionNum() {
+        return BleGatt.MAX_CONNECTION_NUM;
+    }
+
+    /**
+     * Parse BLE scan record bytes into a {@link BleScanRecord}.
+     *
+     * @param scanRecord raw advertising data bytes from BLE scan result
+     * @return parsed result {@link BleScanRecord}
+     */
+    public static BleScanRecord parseScanRecord(byte[] scanRecord) {
+        return BleScanRecord.parseFromBytes(scanRecord);
     }
 
     /**
@@ -655,7 +749,7 @@ public final class BleManager {
     }
 
     private void checkBluetoothAddress(String address) {
-        if (!isAddressValid(address)) {
+        if (!isValidAddress(address)) {
             throw new IllegalArgumentException("Invalid address: " + address);
         }
     }
@@ -665,6 +759,7 @@ public final class BleManager {
         private String scanDeviceName;
         private String scanDeviceAddress;
         private UUID[] scanServiceUuids;
+        private boolean fuzzyDeviceName;
 
         private ScanOptions() {
 
@@ -688,7 +783,15 @@ public final class BleManager {
         }
 
         public ScanOptions scanDeviceName(String deviceName) {
+            return scanDeviceName(deviceName, false);
+        }
+
+        public ScanOptions scanDeviceName(String deviceName, boolean fuzzy) {
+            if (fuzzy && TextUtils.isEmpty(deviceName)) {
+                Logger.w("You enabled fuzzy device name matching, but provided a null or empty deviceName");
+            }
             scanDeviceName = deviceName;
+            fuzzyDeviceName = fuzzy;
             return this;
         }
 

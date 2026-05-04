@@ -3,6 +3,7 @@ package com.ficat.easyble.utils;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.PowerManager;
@@ -11,9 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Utils {
-    public static final String PERMISSION_BLUETOOTH_SCAN = "android.permission.BLUETOOTH_SCAN";
-    public static final String PERMISSION_BLUETOOTH_CONNECT = "android.permission.BLUETOOTH_CONNECT";
-    public static final String PERMISSION_BLUETOOTH_ADVERTISE = "android.permission.BLUETOOTH_ADVERTISE";
+    private static final String PERMISSION_BLUETOOTH_SCAN = "android.permission.BLUETOOTH_SCAN";
+    private static final String PERMISSION_BLUETOOTH_CONNECT = "android.permission.BLUETOOTH_CONNECT";
+    private static final String PERMISSION_BLUETOOTH_ADVERTISE = "android.permission.BLUETOOTH_ADVERTISE";
 
     /**
      * Get all permissions BLE required
@@ -47,13 +48,13 @@ public class Utils {
         if (Build.VERSION.SDK_INT >= 31) { //Android12
             //BLUETOOTH_SCAN: enable this central device to scan peripheral devices
             //BLUETOOTH_CONNECT: used to get peripheral device name (BluetoothDevice#getName())
-            return PermissionChecker.isPermissionGranted(context, PERMISSION_BLUETOOTH_SCAN) &&
-                    PermissionChecker.isPermissionGranted(context, PERMISSION_BLUETOOTH_CONNECT);
+            return isPermissionGranted(context, PERMISSION_BLUETOOTH_SCAN) &&
+                    isPermissionGranted(context, PERMISSION_BLUETOOTH_CONNECT);
         } else if (Build.VERSION.SDK_INT >= 29) {//Android10
-            return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
+            return isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
         } else if (Build.VERSION.SDK_INT >= 23) {//Android6
-            return PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
-                    PermissionChecker.isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
+            return isPermissionGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
+                    isPermissionGranted(context, Manifest.permission.ACCESS_FINE_LOCATION);
         } else {
             return true;
         }
@@ -67,8 +68,16 @@ public class Utils {
             throw new IllegalArgumentException("Context is null");
         }
         //Android12(api31) or higher, BLUETOOTH_CONNECT permission is necessary
-        return Build.VERSION.SDK_INT < 31 || PermissionChecker.isPermissionGranted(context, PERMISSION_BLUETOOTH_CONNECT);
+        return Build.VERSION.SDK_INT < 31 || isPermissionGranted(context, PERMISSION_BLUETOOTH_CONNECT);
     }
+
+    public static boolean isPermissionGranted(Context context, String permission){
+        if (context == null) {
+            throw new IllegalArgumentException("Context is null");
+        }
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
 
     public static boolean isForeground(Context context) {
         return isForeground(context, true);

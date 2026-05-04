@@ -1,6 +1,8 @@
 package com.ficat.easyble;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
+import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
@@ -22,10 +24,6 @@ public final class BleDevice implements Parcelable {
      */
     private final BluetoothDevice device;
 
-    /**
-     * Extra info, you can use this to save what you want
-     */
-    private String parcelableExtraClassName;//extra info class name
     private Parcelable parcelableExtra;//extra info
 
 
@@ -50,7 +48,6 @@ public final class BleDevice implements Parcelable {
             return;
         }
         this.parcelableExtra = parcelableExtra;
-        this.parcelableExtraClassName = parcelableExtra.getClass().getName();
     }
 
     public Parcelable getParcelableExtra() {
@@ -61,6 +58,7 @@ public final class BleDevice implements Parcelable {
         return device;
     }
 
+    @SuppressLint("MissingPermission")
     private void tryToGetName() {
         //Android12(api31) or higher,Bluetooth#getName() needs 'BLUETOOTH_CONNECT' permission
         try {
@@ -73,9 +71,8 @@ public final class BleDevice implements Parcelable {
     @Override
     public String toString() {
         return "BleDevice{" +
-                ", name='" + name + '\'' +
+                "name='" + name + '\'' +
                 ", device=" + device +
-                ", parcelableExtraClassName='" + parcelableExtraClassName + '\'' +
                 ", parcelableExtra=" + parcelableExtra +
                 '}';
     }
@@ -89,23 +86,17 @@ public final class BleDevice implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.name);
         dest.writeParcelable(this.device, flags);
-        dest.writeString(this.parcelableExtraClassName);
         dest.writeParcelable(this.parcelableExtra, flags);
     }
 
     protected BleDevice(Parcel in) {
         this.name = in.readString();
-        this.device = in.readParcelable(BluetoothDevice.class.getClassLoader());
-        this.parcelableExtraClassName = in.readString();
-        if (!TextUtils.isEmpty(this.parcelableExtraClassName)) {
-            try {
-                Class<?> claze = Class.forName(this.parcelableExtraClassName);
-                this.parcelableExtra = in.readParcelable(claze.getClassLoader());
-            } catch (Exception e) {
-                Logger.e("Failed to read parcelable extra info while creating BleDevice, error msg: "
-                        + e.getMessage());
-            }
+        if (Build.VERSION.SDK_INT >= 33) { // Android 13
+            this.device = in.readParcelable(BluetoothDevice.class.getClassLoader(), BluetoothDevice.class);
+        } else {
+            this.device = in.readParcelable(BluetoothDevice.class.getClassLoader());
         }
+        parcelableExtra = in.readParcelable(getClass().getClassLoader());
     }
 
     public static final Creator<BleDevice> CREATOR = new Creator<BleDevice>() {
