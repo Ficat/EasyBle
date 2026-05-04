@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle is a framework used for android BLE, it makes android Ble operation simpler and supports basic BLE operations
->On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.2.x)
+>On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.3.x)
 
 [中文文档](doc/README_CN.md)
 
@@ -13,7 +13,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.2.0'
+    implementation 'com.github.Ficat:EasyBle:v3.3.0'
 }
 ```
 
@@ -55,6 +55,7 @@ dependencies {
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
                 .scanPeriod(10000)// scan timeout
+	            //.scanDeviceName("deviceName", true)   //  The second param indicates whether to enable fuzzy match
                 .scanDeviceName(null);
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
@@ -66,19 +67,21 @@ dependencies {
                         .setScanOptions(scanOptions)
                         .setConnectionOptions(connOptions)
                         .setLog(true, "TAG")
-                        .init(this.getApplication());// Init() requires context, to avoid memory leak, you'd better use Application instance
+                        .init(this.getApplication());
 
 ```
 
 ### 3.Scan
 On API23+ or higher devices, scan requires some permissions, so ensure all BLE permissions have been granted.
-[How to use BleDevice to carry extra info](doc/README_MORE.md).
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
             public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 String name = device.getName();
                 String address = device.getAddress();
+                
+                // We can use this API to parse scanRecord
+                //BleScanRecord bleScanRecord = BleManager.parseScanRecord(scanRecord);
             }
 
             @Override
@@ -191,6 +194,11 @@ Call one of the following methods to disconnect from remote device
 	   
        // Disconnect from the remote device by address
        bleManager.disconnect(address);
+
+       // Disconnect from the remote device by address. The second param indicates whether 
+       // to close BluetoothGatt immediately without waiting for the system disconnection 
+       // callback if the device is already connected
+       bleManager.disconnect(address, true);
 
        // Disconnect all connected devices
        bleManager.disconnectAll();
@@ -347,6 +355,13 @@ You must call destroy() to release some resources after BLE communication end
 ```java
        bleManager.destroy();
 
+       // The first params indicates whether scan-callbacks should be invoked during the 
+       // destroy process. The second params indicates whether gatt-operation-callbacks(such 
+       // as connect, read, write) should be invoked during the destroy process.Usually, in 
+       // these callback, we will perform some operations such as updating UI and reconnecting.
+       // Before doing so, especially the params is true, we must ensure BleManger is not 
+       // destroyed by checking that BleManager#getContext() does not return null
+       // bleManager.destroy(true, true);
 ```
 
 ### Other api
@@ -361,12 +376,13 @@ You must call destroy() to release some resources after BLE communication end
 |getConnectingDevices()|Get connecting devices|
 |getDeviceServices(String address)|Get all services that remote device supports,note that it may return null. [See example](doc/README_MORE.md)|
 |*supportBle(Context context)*|Check if this device supports ble|
-|*isBluetoothOn()*|Check if local bluetooth is enabled|
-|*isCharacteristicReadable()*|Is the characteristic readable?|
-|*isCharacteristicWritable()*|Is the characteristic writable?|
-|*isCharacteristicNotifiable()*|Does the characteristic support notification?|
-|*isCharacteristicIndicative()*|Does the characteristic support indication?|
-|*isAddressValid(String address)*|Check if the address is valid|
+|*isBluetoothOn()*|Check if local bluetooth is enabled. From 3.3.0, please use isBluetoothEnabled()|
+|*parseScanRecord(byte[] scanRecord)*|Parse scan-record bytes, return a BleScanRecord instance|
+|*isCharacteristicReadable(BluetoothGattCharacteristic ch)*|Is the characteristic readable?|
+|*isCharacteristicWritable(BluetoothGattCharacteristic ch)*|Is the characteristic writable?|
+|*isCharacteristicNotifiable(BluetoothGattCharacteristic ch)*|Does the characteristic support notification?|
+|*isCharacteristicIndicative(BluetoothGattCharacteristic ch)*|Does the characteristic support indication?|
+|*isAddressValid(String address)*|Check if the address is valid. From 3.3.0, please use isValidAddress()|
 |*getValidMtuRange()*|Get valid MTU range, this method returns an array(int[2], int[0]= MinMtu, int[1]=MaxMtu) |
 |*getBleRequiredPermissions()*|Get all BLE required permissions. Lower version may not require any permissions, so do not forget to check the length of permissionList|
 |*allBlePermissionsGranted(Context context)*|Check if all BLE required permissions have been granted|

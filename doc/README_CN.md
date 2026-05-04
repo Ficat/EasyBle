@@ -1,6 +1,6 @@
 # EasyBle
   EasyBle主要用于简化安卓BLE操作流程，降低BLE开发繁琐程度。本库支持扫描（含自定义过滤条件扫描）、连接（包括设备多连接）、设备服务查询、读写数据（含分批写入）、读取设备信号、设置最大传输单元等BLE操作
->由于Android12起蓝牙权限等发生变化，故请使用或升级到最新版本（3.2.x）
+>由于Android12起蓝牙权限等发生变化，故请使用或升级到最新版本（3.3.x）
 ## Gradle dependency
 ```gradle
 allprojects {
@@ -11,7 +11,7 @@ allprojects {
 
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.2.0'
+    implementation 'com.github.Ficat:EasyBle:v3.3.0'
 }
 ```
 
@@ -50,6 +50,7 @@ dependencies {
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
                 .scanPeriod(10000)// 扫描超时
+	            //.scanDeviceName("deviceName", true)   // 第二个参数表示是否开启模糊匹配
                 .scanDeviceName(null);
 
         BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
@@ -61,19 +62,21 @@ dependencies {
                 .setScanOptions(scanOptions)
                 .setConnectionOptions(connOptions)
                 .setLog(true, "TAG")
-                .init(this.getApplication());// 这里需要Context，但为了防止内存泄露，最好传Application实例
+                .init(this.getApplication());
 
 ```
 
 ### 3.扫描
 安卓版本不小于6.0的，扫描需要BLE权限，因此扫描前确保所有BLE权限已被授予.
- [如何使用BleDevice存储或携带额外信息](README_MORE_CN.md).
 ```java
         bleManager.startScan(new BleScanCallback() {
             @Override
             public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 String name = device.getName();
                 String address = device.getAddress();
+
+                // 可使用以下API解析扫描数据
+                //BleScanRecord bleScanRecord = BleManager.parseScanRecord(scanRecord);
             }
 
             @Override
@@ -185,6 +188,10 @@ dependencies {
 
        //传入目标的mac地址断开与该设备的连接
        bleManager.disconnect(address);
+
+       // 传入目标的mac地址断开与该设备的连接
+       // 第二个参数表示，若设备已经连接，是否立即关闭BluetoothGatt而无需等待系统断开连接的回调
+       bleManager.disconnect(address, true);
 
        //断开所有已连接设备
        bleManager.disconnectAll();
@@ -339,6 +346,10 @@ notify和indicate都使用以下方法
 ```java
        bleManager.destroy();
 
+       // 第一个参数表示扫描回调是否在销毁时正常回调，第二个参数表示gatt操作回调是否在销毁时正常回调。
+       // 通常而言，我们都会在这些回调中做一些操作比如重连、更新UI等。在做这些之前，我们需要检查下BleManger
+       // 是否已经销毁，可以检查BleManager#getContext()是否返回null来检查是否已销毁
+       // bleManager.destroy(true, true);
 ```
 
 ### 其他api
@@ -353,13 +364,15 @@ notify和indicate都使用以下方法
 |getConnectingDevices()|获取正在连接的设备列表|
 |getDeviceServices(String address)|获取已连接设备所支持的服务信息，注意若未连接则返回null。 [参见示例](README_MORE_CN.md)|
 |*supportBle(Context context)*|设备是否支持BLE|
-|*isBluetoothOn()*|蓝牙是否已打开|
-|*isCharacteristicReadable()*|特征是否可读？|
-|*isCharacteristicWritable()*|特征是否可写？|
-|*isCharacteristicNotifiable()*|特征是否支持Notification|
-|*isCharacteristicIndicative()*|特征是否支持Indication|
-|*isAddressValid(String address)*|是否为合法的mac地址|
+|*isBluetoothOn()*|蓝牙是否已打开，3.3.0开始请使用isBluetoothEnabled()|
+|*parseScanRecord(byte[] scanRecord)*|解析扫描结果字节数组，返回一个BleScanRecord实例|
+|*isCharacteristicReadable(BluetoothGattCharacteristic ch)*|特征是否可读？|
+|*isCharacteristicWritable(BluetoothGattCharacteristic ch)*|特征是否可写？|
+|*isCharacteristicNotifiable(BluetoothGattCharacteristic ch)*|特征是否支持Notification|
+|*isCharacteristicIndicative(BluetoothGattCharacteristic ch)*|特征是否支持Indication|
+|*isAddressValid(String address)*|是否为合法的mac地址，3.3.0开始请使用isValidAddress()|
 |*getValidMtuRange()*|获取有效的MTU范围，返回int数组，数组长度为2，分别为MTU最小值、MTU最大值|
+|*getDefaultMaxConnectionNum()*|获取默认最大可连接数量|
 |*getBleRequiredPermissions()*|获取所有BLE所需权限，低版本可能无需任何权限，因此不要忘记检查permissionList长度|
 |*allBlePermissionsGranted(Context context)*|检查是否所有BLE权限已被授予|
 |*scanPermissionGranted(Context context)*|检查是否扫描权限已被授予|
