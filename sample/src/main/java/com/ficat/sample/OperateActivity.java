@@ -290,13 +290,13 @@ public class OperateActivity extends AppCompatActivity implements View.OnClickLi
                 case BleErrorCodes.BLUETOOTH_OFF:
                     tips = getString(R.string.tips_bluetooth_off);
                     break;
-                case BleErrorCodes.CONNECTION_PERMISSION_NOT_GRANTED:
+                case BleErrorCodes.PERMISSION_MISSING:
                     tips = getString(R.string.tips_connection_permissions_not_granted);
                     break;
                 case BleErrorCodes.CONNECTION_REACH_MAX_NUM:
                     tips = getString(R.string.tips_connection_reach_max_num);
                     break;
-                case BleErrorCodes.CONNECTION_TIMEOUT:
+                case BleErrorCodes.TIMEOUT:
                     tips = getString(R.string.tips_connection_timeout);
                     break;
                 case BleErrorCodes.CONNECTION_CANCELED:

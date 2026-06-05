@@ -19,8 +19,13 @@ import android.text.TextUtils;
 import com.ficat.easyble.gatt.BleGatt;
 import com.ficat.easyble.gatt.BleGattAccessor;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
+import com.ficat.easyble.gatt.callback.BleConnectionPriorityCallback;
+import com.ficat.easyble.gatt.callback.BleDescriptorReadCallback;
+import com.ficat.easyble.gatt.callback.BleDescriptorWriteCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
+import com.ficat.easyble.gatt.callback.BlePhyPreferenceCallback;
+import com.ficat.easyble.gatt.callback.BlePhyReadCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
@@ -34,12 +39,14 @@ import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.utils.Utils;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public final class BleManager {
     private Context mContext;
     private ScanOptions mScanOptions;
     private ConnectionOptions mConnectionOptions;
+    private long mGattOperationTimeoutMillis = BleGatt.DEFAULT_OPERATION_TIMEOUT_MILLIS;
     private BleScan<BleScanCallback> mScan;
     private BleGatt mGatt;
     private BleReceiver mReceiver;
@@ -96,6 +103,14 @@ public final class BleManager {
         return this;
     }
 
+    public BleManager setGattOperationTimeout(long millis) {
+        if (millis <= 0) {
+            millis = BleGatt.DEFAULT_OPERATION_TIMEOUT_MILLIS;
+        }
+        mGattOperationTimeoutMillis = millis;
+        return this;
+    }
+
     public boolean isScanning() {
         return mScan.isScanning();
     }
@@ -117,8 +132,8 @@ public final class BleManager {
         if (Build.VERSION.SDK_INT >= 24 && !Utils.isGpsOn(mContext)) {
             Logger.i("You'd better turn on GPS to avoid that scan doesn't work");
         }
-        mScan.startScan(options.scanPeriod, options.scanDeviceName, options.scanDeviceAddress,
-                options.scanServiceUuids, options.fuzzyDeviceName, callback);
+        mScan.startScan(options.mScanPeriod, options.mScanDeviceName, options.mScanDeviceAddress,
+                options.mScanServiceUuids, options.mFuzzyDeviceName, callback);
     }
 
     /**
@@ -153,7 +168,8 @@ public final class BleManager {
         if (options == null) {
             options = ConnectionOptions.newInstance();
         }
-        mGatt.connect(options.connectionPeriod, device, callback);
+        mGatt.connect(options.mConnectionPeriod, options.mRetryCount, options.mRetryDelay,
+                options.mAutoConnect, device, callback);
     }
 
     /**
@@ -227,6 +243,9 @@ public final class BleManager {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
         }
+        if (serviceUuid == null || notifyUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
+        }
         if (callback == null) {
             throw new IllegalArgumentException("BleNotifyCallback is null");
         }
@@ -243,6 +262,9 @@ public final class BleManager {
     public void cancelNotify(BleDevice device, UUID serviceUuid, UUID characteristicUuid) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (serviceUuid == null) {
+            throw new IllegalArgumentException("Service uuid is null");
         }
         mGatt.cancelNotify(device, serviceUuid, characteristicUuid);
     }
@@ -261,6 +283,9 @@ public final class BleManager {
                       BleWriteCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (serviceUuid == null || writeUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
         }
         if (callback == null) {
             throw new IllegalArgumentException("BleWriteCallback is null");
@@ -297,7 +322,10 @@ public final class BleManager {
         if (callback == null) {
             throw new IllegalArgumentException("BleWriteByBatchCallback is null");
         }
-        if (data == null || data.length == 0) {
+        if (serviceUuid == null || writeUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
+        }
+        if (data == null || data.length <= 0) {
             throw new IllegalArgumentException("Data is null");
         }
         mGatt.writeByBatch(device, serviceUuid, writeUuid, data, lengthPerBatch, batchInterval, callback);
@@ -315,6 +343,9 @@ public final class BleManager {
     public void read(BleDevice device, UUID serviceUuid, UUID readUuid, BleReadCallback callback) {
         if (device == null) {
             throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (serviceUuid == null || readUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
         }
         if (callback == null) {
             throw new IllegalArgumentException("BleReadCallback is null");
@@ -342,7 +373,9 @@ public final class BleManager {
      * Set MTU (Maximum Transmission Unit)
      *
      * @param device   remote device
-     * @param mtu      MTU value, rang from 23 to 512
+     * @param mtu      MTU we requested successfully, rang from 23 to 515. Note that valid
+     *                 maximum transmission is (MTU - 3). For example, if the mtu we requested
+     *                 is 23, the max data length that we can write/read is 20 (23 - 3)
      * @param callback result callback
      */
     public void setMtu(BleDevice device, int mtu, BleMtuCallback callback) {
@@ -353,6 +386,150 @@ public final class BleManager {
             throw new IllegalArgumentException("BleMtuCallback is null");
         }
         mGatt.setMtu(device, mtu, callback);
+    }
+
+    /**
+     * Write the value of a given descriptor to the associated remote device
+     * If the operation succeed, the callback
+     * {@link BleDescriptorWriteCallback#onDescriptorWriteSuccess(byte[], UUID, BleDevice)}
+     * will be triggered
+     *
+     * @param device             the remote device
+     * @param serviceUuid        service uuid
+     * @param characteristicUuid characteristic uuid
+     * @param descriptorUuid     target descriptor uuid
+     * @param data               data
+     * @param callback           callback
+     */
+    public void descriptorWrite(BleDevice device, UUID serviceUuid, UUID characteristicUuid,
+                                UUID descriptorUuid, byte[] data, BleDescriptorWriteCallback callback) {
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (serviceUuid == null || characteristicUuid == null || descriptorUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
+        }
+        if (data == null || data.length <= 0) {
+            throw new IllegalArgumentException("Data is null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("BleDescriptorWriteCallback is null");
+        }
+        mGatt.descriptorWrite(device, serviceUuid, characteristicUuid, descriptorUuid, data, callback);
+    }
+
+    /**
+     * Reads the value for a given descriptor from the associated remote device.
+     * Once the read operation has been completed, the callback
+     * {@link BleDescriptorReadCallback#onDescriptorReadSuccess(byte[], UUID, BleDevice)}
+     * will be triggered.
+     *
+     * @param device             the remote device
+     * @param serviceUuid        service uuid
+     * @param characteristicUuid characteristic uuid
+     * @param descriptorUuid     target descriptor uuid
+     * @param callback           callback
+     */
+    public void descriptorRead(BleDevice device, UUID serviceUuid, UUID characteristicUuid,
+                               UUID descriptorUuid, BleDescriptorReadCallback callback) {
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (serviceUuid == null || characteristicUuid == null || descriptorUuid == null) {
+            throw new IllegalArgumentException("UUID is null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("BleDescriptorReadCallback is null");
+        }
+        mGatt.descriptorRead(device, serviceUuid, characteristicUuid, descriptorUuid, callback);
+    }
+
+    /**
+     * Read the current transmitter PHY and receiver PHY of the connection. The values are
+     * returned in {@link BlePhyReadCallback#onPhyReadSuccess(int, int, BleDevice)}
+     *
+     * @param device   the remote device
+     * @param callback callback
+     */
+    public void readPhy(BleDevice device, BlePhyReadCallback callback) {
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("BlePhyReadCallback is null");
+        }
+        mGatt.readPhy(device, callback);
+    }
+
+    /**
+     * Set the preferred connection PHY.
+     * <p>
+     * Note that this is just a recommendation, whether the PHY change will happen depends
+     * on other applications preferences, local and remote controller capabilities.
+     * {@link BlePhyPreferenceCallback#onPhyChanged(int, int, BleDevice)} will be triggered
+     * as a result of this call, even if no PHY change happens. It is also triggered when
+     * remote device updates the PHY.
+     * </p>
+     *
+     * @param device     the remote device
+     * @param txPhy      preferred transmitter PHY. Bitwise OR of any of
+     *                   {@link BluetoothDevice#PHY_LE_1M_MASK},
+     *                   {@link BluetoothDevice#PHY_LE_2M_MASK},
+     *                   {@link BluetoothDevice#PHY_LE_CODED_MASK}.
+     * @param rxPhy      preferred receiver PHY. Bitwise OR of any of
+     *                   {@link BluetoothDevice#PHY_LE_1M_MASK},
+     *                   {@link BluetoothDevice#PHY_LE_2M_MASK},
+     *                   {@link BluetoothDevice#PHY_LE_CODED_MASK}.
+     * @param phyOptions preferred coding to use when transmitting on the LE Coded PHY.
+     *                   Use one of the following:
+     *                   {@link BluetoothDevice#PHY_OPTION_NO_PREFERRED},
+     *                   {@link BluetoothDevice#PHY_OPTION_S2},
+     *                   {@link BluetoothDevice#PHY_OPTION_S8}.
+     * @param callback   callback
+     */
+    public void setPreferencePhy(BleDevice device, int txPhy, int rxPhy, int phyOptions,
+                                 BlePhyPreferenceCallback callback) {
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("BlePhyPreferenceCallback is null");
+        }
+        mGatt.setPreferencePhy(device, txPhy, rxPhy, phyOptions, callback);
+    }
+
+    /**
+     * Request a connection parameter update.
+     * <p>
+     * Note that {@link BleConnectionPriorityCallback#onConnectionPriorityRequestSuccess(int, BleDevice)}
+     * just means the request succeeded, not connection params updated successfully.
+     * </p>
+     *
+     * @param device       the remote device
+     * @param connPriority request a specific connection priority. it must be one of
+     *                     {@link BluetoothGatt#CONNECTION_PRIORITY_BALANCED}
+     *                     {@link BluetoothGatt#CONNECTION_PRIORITY_HIGH}
+     *                     {@link BluetoothGatt#CONNECTION_PRIORITY_LOW_POWER}
+     *                     {@link BluetoothGatt#CONNECTION_PRIORITY_DCK}
+     * @param callback     callback
+     */
+    public void requestConnectionPriority(BleDevice device, int connPriority,
+                                          BleConnectionPriorityCallback callback) {
+        if (device == null) {
+            throw new IllegalArgumentException("BleDevice is null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("BleConnectionPriorityCallback is null");
+        }
+        if (connPriority != BluetoothGatt.CONNECTION_PRIORITY_BALANCED &&
+                connPriority != BluetoothGatt.CONNECTION_PRIORITY_HIGH &&
+                connPriority != BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER &&
+                connPriority != 3) { // BluetoothGatt.CONNECTION_PRIORITY_DCK == 3
+            throw new IllegalArgumentException(String.format(Locale.US,
+                    "Invalid connection priority=%d, it must be from %d to %d",
+                    connPriority, 0, 3));
+        }
+        mGatt.requestConnectionPriority(device, connPriority, callback);
     }
 
     /**
@@ -695,6 +872,10 @@ public final class BleManager {
         return mConnectionOptions == null ? ConnectionOptions.newInstance() : mConnectionOptions;
     }
 
+    public long getGattOperationTimeout() {
+        return mGattOperationTimeoutMillis;
+    }
+
     /**
      * Get the BluetoothGatt object of specific remote device
      *
@@ -726,9 +907,18 @@ public final class BleManager {
                 }
             }
         });
+        mReceiver.setBluetoothBondStateChangeListener(new BleReceiver.BluetoothBondStateChangeListener() {
+            @Override
+            public void onBluetoothBondStateChanged(int newState, int previousState, BluetoothDevice device) {
+                if (mGatt != null && (mGatt instanceof BluetoothBondListen)) {
+                    ((BluetoothBondListen) mGatt).onBluetoothBondStateChanged(newState, previousState, device);
+                }
+            }
+        });
         try {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+            intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
             mContext.registerReceiver(mReceiver, intentFilter);
         } catch (Exception e) {
             Logger.e("Registering BleReceiver encounters an exception: " + e.getMessage());
@@ -740,8 +930,9 @@ public final class BleManager {
             return;
         }
         try {
+            mReceiver.cancelBluetoothStateChangeListener();
+            mReceiver.cancelBluetoothBondStateChangeListener();
             mContext.unregisterReceiver(mReceiver);
-            mReceiver.removeBluetoothStateChangeListener();
             mReceiver = null;
         } catch (Exception e) {
             Logger.e("Unregistering BleReceiver encounters an exception: " + e.getMessage());
@@ -755,11 +946,11 @@ public final class BleManager {
     }
 
     public static final class ScanOptions {
-        private long scanPeriod = 12000;
-        private String scanDeviceName;
-        private String scanDeviceAddress;
-        private UUID[] scanServiceUuids;
-        private boolean fuzzyDeviceName;
+        private long mScanPeriod = 12000;
+        private String mScanDeviceName;
+        private String mScanDeviceAddress;
+        private UUID[] mScanServiceUuids;
+        private boolean mFuzzyDeviceName;
 
         private ScanOptions() {
 
@@ -777,7 +968,7 @@ public final class BleManager {
          */
         public ScanOptions scanPeriod(long millis) {
             if (millis > 0) {
-                this.scanPeriod = millis;
+                this.mScanPeriod = millis;
             }
             return this;
         }
@@ -790,40 +981,43 @@ public final class BleManager {
             if (fuzzy && TextUtils.isEmpty(deviceName)) {
                 Logger.w("You enabled fuzzy device name matching, but provided a null or empty deviceName");
             }
-            scanDeviceName = deviceName;
-            fuzzyDeviceName = fuzzy;
+            mScanDeviceName = deviceName;
+            mFuzzyDeviceName = fuzzy;
             return this;
         }
 
         public ScanOptions scanDeviceAddress(String deviceAddress) {
-            scanDeviceAddress = deviceAddress;
+            mScanDeviceAddress = deviceAddress;
             return this;
         }
 
         public ScanOptions scanServiceUuids(UUID[] serviceUuids) {
-            scanServiceUuids = serviceUuids;
+            mScanServiceUuids = serviceUuids;
             return this;
         }
 
         public long getScanPeriod() {
-            return scanPeriod;
+            return mScanPeriod;
         }
 
         public String getScanDeviceName() {
-            return scanDeviceName;
+            return mScanDeviceName;
         }
 
         public String getScanDeviceAddress() {
-            return scanDeviceAddress;
+            return mScanDeviceAddress;
         }
 
         public UUID[] getScanServiceUuids() {
-            return scanServiceUuids;
+            return mScanServiceUuids;
         }
     }
 
     public static final class ConnectionOptions {
-        private long connectionPeriod = 10000;
+        private long mConnectionPeriod = 10000;
+        private int mRetryCount = 0;
+        private long mRetryDelay = 3000;
+        private boolean mAutoConnect = false;
 
         private ConnectionOptions() {
 
@@ -845,15 +1039,92 @@ public final class BleManager {
             return connectionTimeout(millis);
         }
 
+        /**
+         * Set a connection timeout duration.
+         * <p>
+         * Note that if you have called {@link #autoConnect(boolean)} and pass true,
+         * connection timeout will be meaningless.
+         * </p>
+         *
+         * @param millis connection timeout
+         */
         public ConnectionOptions connectionTimeout(long millis) {
             if (millis > 0) {
-                connectionPeriod = millis;
+                mConnectionPeriod = millis;
             }
             return this;
         }
 
+        /**
+         * Auto-connection, if true, once device is in rang, system will connect to the target
+         * device automatically.
+         * <p>
+         * Note that:
+         * 1.If autoConnect is true, after calling any #connect() method, such as
+         * {@link #connect(String, ConnectionOptions, BleConnectCallback)}, once target device
+         * is in rang, system try to connect to it automatically, that means connection timeout
+         * will never occur
+         * 2.Auto-connection will not survive turning off the android device’s Bluetooth, we must
+         * call any #connect() again after re-enabling Bluetooth. In other words, if bluetooth
+         * is turned off, auto-connection will be invalid, so if you want to connect to target
+         * device, do not forget to call #connect() again
+         * 3.If you call any #disconnect(), such as {@link #disconnect(String)}, it will cancel
+         * auto-connection
+         * </p>
+         *
+         * @param autoConnect whether connect automatically
+         */
+        public ConnectionOptions autoConnect(boolean autoConnect) {
+            this.mAutoConnect = autoConnect;
+            return this;
+        }
+
+        /**
+         * Retry connection if connection failed.
+         * <p>
+         * Note that only gatt error can trigger connection-retry. The following situations
+         * will not trigger a connection retry.
+         * 1.Auto-connect
+         * 2.Connection timeout
+         * 3.Bluetooth off
+         * 4.Call any #disconnect() method, such as {@link #disconnect(String)}
+         * </p>
+         *
+         * @param retryCount       retry count, from 0 to 8
+         * @param retryDelayMillis retry delay (unit: millis), from 500 to 60000
+         */
+        public ConnectionOptions retryWhenConnectionFailed(int retryCount, long retryDelayMillis) {
+            if (retryCount < 0) {
+                retryCount = 0;
+            }
+            if (retryCount > 8) {
+                retryCount = 8;
+            }
+            if (retryDelayMillis > 60 * 1000) {
+                retryDelayMillis = 60 * 1000;
+            }
+            if (retryDelayMillis < 0) {
+                retryDelayMillis = 500;
+            }
+            this.mRetryCount = retryCount;
+            this.mRetryDelay = retryDelayMillis;
+            return this;
+        }
+
         public long getConnectionPeriod() {
-            return connectionPeriod;
+            return mConnectionPeriod;
+        }
+
+        public int getRetryCount() {
+            return mRetryCount;
+        }
+
+        public long getRetryDelay() {
+            return mRetryDelay;
+        }
+
+        public boolean isAutoConnect() {
+            return mAutoConnect;
         }
     }
 
@@ -865,5 +1136,9 @@ public final class BleManager {
 
     public interface BluetoothStateListen {
         void onBluetoothStateChanged(int state);
+    }
+
+    public interface BluetoothBondListen {
+        void onBluetoothBondStateChanged(int newState, int previousState, BluetoothDevice device);
     }
 }

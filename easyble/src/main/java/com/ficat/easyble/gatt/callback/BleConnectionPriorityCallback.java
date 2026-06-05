@@ -1,30 +1,32 @@
 package com.ficat.easyble.gatt.callback;
 
-
 import com.ficat.easyble.BleDevice;
 
-
-public interface BleMtuCallback {
+public interface BleConnectionPriorityCallback {
     /**
-     * MTU is set successfully
+     * Request connection priority successfully
      *
-     * @param mtu    current MTU
-     * @param device the remote device
+     * <p>
+     * Note that if this callback is triggered, it just means the request succeeded,
+     * not connection params updated successfully.
+     * </p>
+     *
+     * @param connPriority connection priority
+     * @param device       the remote device
      */
-    void onMtuChanged(int mtu, BleDevice device);
+    void onConnectionPriorityRequestSuccess(int connPriority, BleDevice device);
 
     /**
-     * Failed to set MTU
+     * Failed to request connection priority
      *
      * @param errCode If it's sdk custom error, it will be one of the following:
      *                {@link com.ficat.easyble.BleErrorCodes#API_VERSION_NOT_SUPPORTED}
      *                {@link com.ficat.easyble.BleErrorCodes#CONNECTION_NOT_ESTABLISHED}
-     *                {@link com.ficat.easyble.BleErrorCodes#TIMEOUT}
-     *                {@link com.ficat.easyble.BleErrorCodes#UNKNOWN}
+     *                {@link com.ficat.easyble.BleErrorCodes#UNKNOWN}.
      *                Or it belongs to gatt error codes, like
      *                {@link com.ficat.easyble.BleErrorCodes#GATT_INSUFFICIENT_AUTHORIZATION},
      *                {@link com.ficat.easyble.BleErrorCodes#GATT_FAILURE} and so on.
      * @param device  the remote device
      */
-    void onMtuFailed(int errCode, BleDevice device);
+    void onConnectionPriorityFailed(int errCode, BleDevice device);
 }

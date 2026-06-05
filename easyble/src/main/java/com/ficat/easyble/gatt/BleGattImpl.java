@@ -1,6 +1,7 @@
 package com.ficat.easyble.gatt;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.os.Build;
 import android.os.Handler;
@@ -10,8 +11,13 @@ import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleErrorCodes;
 import com.ficat.easyble.BleManager;
 import com.ficat.easyble.gatt.callback.BleConnectCallback;
+import com.ficat.easyble.gatt.callback.BleConnectionPriorityCallback;
+import com.ficat.easyble.gatt.callback.BleDescriptorReadCallback;
+import com.ficat.easyble.gatt.callback.BleDescriptorWriteCallback;
 import com.ficat.easyble.gatt.callback.BleMtuCallback;
 import com.ficat.easyble.gatt.callback.BleNotifyCallback;
+import com.ficat.easyble.gatt.callback.BlePhyPreferenceCallback;
+import com.ficat.easyble.gatt.callback.BlePhyReadCallback;
 import com.ficat.easyble.gatt.callback.BleReadCallback;
 import com.ficat.easyble.gatt.callback.BleRssiCallback;
 import com.ficat.easyble.gatt.callback.BleWriteByBatchCallback;
@@ -28,7 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by pw on 2018/9/13.
  */
-public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateListen {
+public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateListen,
+        BleManager.BluetoothBondListen {
     private final Map<String, BleGattCommunicator> mBleGattCommunicatorMap;
     private final Handler mMainHandler;
 
@@ -38,7 +45,8 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     }
 
     @Override
-    public void connect(long timeoutMillis, BleDevice device, BleConnectCallback callback) {
+    public void connect(long timeoutMillis, int retryCount, long retryDelay, boolean autoConnect,
+                        BleDevice device, BleConnectCallback callback) {
         // Check bluetooth and permission state
         boolean bluetoothOff = !BleManager.isBluetoothEnabled();
         boolean noPermissions = !BleManager.connectionPermissionGranted(BleManager.getInstance().getContext());
@@ -47,7 +55,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
             if (bluetoothOff) {
                 code = BleErrorCodes.BLUETOOTH_OFF;
             } else {
-                code = BleErrorCodes.CONNECTION_PERMISSION_NOT_GRANTED;
+                code = BleErrorCodes.PERMISSION_MISSING;
             }
             mMainHandler.post(new Runnable() {
                 @Override
@@ -104,7 +112,7 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
             }
         }
 
-        communicator.connectGatt(timeoutMillis, callback);
+        communicator.connect(timeoutMillis, retryCount, retryDelay, autoConnect, callback);
     }
 
     @Override
@@ -229,6 +237,85 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
     }
 
     @Override
+    public void descriptorWrite(BleDevice device, UUID serviceUuid, UUID characteristicUuid,
+                                UUID descriptorUuid, byte[] data, BleDescriptorWriteCallback callback) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            mMainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onDescriptorWriteFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, data, descriptorUuid, device);
+                }
+            });
+            return;
+        }
+        communicator.descriptorWrite(serviceUuid, characteristicUuid, descriptorUuid, data, callback);
+    }
+
+    @Override
+    public void descriptorRead(BleDevice device, UUID serviceUuid, UUID characteristicUuid,
+                               UUID descriptorUuid, BleDescriptorReadCallback callback) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            mMainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onDescriptorReadFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, descriptorUuid, device);
+                }
+            });
+            return;
+        }
+        communicator.descriptorRead(serviceUuid, characteristicUuid, descriptorUuid, callback);
+    }
+
+    @Override
+    public void readPhy(BleDevice device, BlePhyReadCallback callback) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            mMainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onPhyReadFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, device);
+                }
+            });
+            return;
+        }
+        communicator.readPhy(callback);
+    }
+
+    @Override
+    public void setPreferencePhy(BleDevice device, int txPhy, int rxPhy, int phyOptions,
+                                 BlePhyPreferenceCallback callback) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            mMainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onPhyPreferenceSetFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, device);
+                }
+            });
+            return;
+        }
+        communicator.setPreferencePhy(txPhy, rxPhy, phyOptions, callback);
+    }
+
+    @Override
+    public void requestConnectionPriority(BleDevice device, int connPriority,
+                                          BleConnectionPriorityCallback callback) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            mMainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onConnectionPriorityFailed(BleErrorCodes.CONNECTION_NOT_ESTABLISHED, device);
+                }
+            });
+            return;
+        }
+        communicator.requestConnectionPriority(connPriority, callback);
+    }
+
+    @Override
     public List<BleDevice> getConnectedDevices() {
         List<BleDevice> deviceList = new ArrayList<>();
         for (BleGattCommunicator d : mBleGattCommunicatorMap.values()) {
@@ -287,6 +374,15 @@ public final class BleGattImpl implements BleGatt, BleManager.BluetoothStateList
                 d.onBluetoothOff();
             }
         }
+    }
+
+    @Override
+    public void onBluetoothBondStateChanged(int newState, int previousState, BluetoothDevice device) {
+        BleGattCommunicator communicator = mBleGattCommunicatorMap.get(device.getAddress());
+        if (communicator == null) {
+            return;
+        }
+        communicator.onBluetoothBondStateChanged(newState, previousState);
     }
 
     @Override

@@ -67,7 +67,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             return;
         }
         if (!BleManager.scanPermissionGranted(BleManager.getInstance().getContext())) {
-            callback.onScanFailed(BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED);
+            callback.onScanFailed(BleErrorCodes.PERMISSION_MISSING);
             return;
         }
         synchronized (this) {
