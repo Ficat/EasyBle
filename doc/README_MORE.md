@@ -1,12 +1,4 @@
-### 1. About BLE required permissions
-|API version|Required Permissions|
-|------|-----------|
-|API31+|*"android.permission.BLUETOOTH_SCAN"*<br>*"android.permission.BLUETOOTH_CONNECT"*<br>*"android.permission.BLUETOOTH_ADVERTISE"*|
-|API29+|*"android.permission.ACCESS_FINE_LOCATION"*|
-|API23+|*"android.permission.ACCESS_COARSE_LOCATION"* or <br>*"android.permission.ACCESS_FINE_LOCATION"*|
-|API22-| None|
-
-### 2.About BleManager#getDeviceServices(String), how to get services and its characteristics
+### 1.About BleManager#getDeviceServices(String), how to get services and its characteristics
 ```java
        List<BluetoothGattService> services = BleManager.getInstance().getDeviceServices(device.getAddress());
        if (services == null) {

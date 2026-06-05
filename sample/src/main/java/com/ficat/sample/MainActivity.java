@@ -100,6 +100,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         BleManager.ConnectionOptions connectionOptions = BleManager.ConnectionOptions
                 .newInstance()
+                .autoConnect(true)
+                .retryWhenConnectionFailed(3,3000)
                 .connectionPeriod(12000); // connection period (connection timeout)
 
         manager = BleManager

@@ -87,13 +87,22 @@ public class BleScanRecord implements Parcelable {
     }
 
     /**
-     * Get manufacturer data
-     * <p>
-     * Note that it may return null or empty sparse-array
-     * </p>
+     * Returns a sparse array of manufacturer identifier and its corresponding manufacturer
+     * specific data.
      */
     public SparseArray<byte[]> getManufacturerSpecificData() {
         return mManufacturerSpecificData;
+    }
+
+    /**
+     * Returns the manufacturer specific data associated with the manufacturer id. Returns
+     * {@code null} if the {@code manufacturerId} is not found.
+     */
+    public byte[] getManufacturerSpecificData(int manufacturerId) {
+        if (mManufacturerSpecificData == null) {
+            return null;
+        }
+        return mManufacturerSpecificData.get(manufacturerId);
     }
 
     /**

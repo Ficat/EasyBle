@@ -1,6 +1,10 @@
 # EasyBle
-  EasyBle is a framework used for android BLE, it makes android Ble operation simpler and supports basic BLE operations
->On android12 or higher devices, BLE requires some permissions, please use or update it to the newest version(3.3.x)
+EasyBle is a lightweight Android BLE library designed to simplify Bluetooth Low Energy development. It has the following features:
+- BLE scanning with configurable scan filters.
+- Automatic connection and connection retry support.
+- Comprehensive GATT operations, including RSSI reading, MTU configuration, Characteristic and Descriptor read/write, and notification/indication support.
+- Sequential GATT operation queue with timeout protection (v3.4.0+ supports)
+>On android12 or higher devices, BLE requires some permissions, and to use the latest features, please upgrade to version 3.3.0 or later
 
 [中文文档](doc/README_CN.md)
 
@@ -13,33 +17,32 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.3.0'
+    implementation 'com.github.Ficat:EasyBle:v3.4.0'
 }
 ```
 
+## Permissions
+|API version|Required Permissions|
+|------|-----------|
+|API31+|*"android.permission.BLUETOOTH_SCAN"*<br>*"android.permission.BLUETOOTH_CONNECT"*<br>*"android.permission.BLUETOOTH_ADVERTISE"*|
+|API29+|*"android.permission.ACCESS_FINE_LOCATION"*<br>*"android.permission.ACCESS_FINE_LOCATION"|
+|API23+|*"android.permission.ACCESS_COARSE_LOCATION"* or <br>*"android.permission.ACCESS_FINE_LOCATION"*|
+|API22-| None|
+
 ## Usage
- The framework uses BleManager to manager BLE
 ### 1.Check if the device supports BLE, request BLE required permissions and turn on bluetooth.<br>
-[See BLE permission details](doc/README_MORE.md)
+
 ```java
         // Check if the device supports BLE
-        BleManager.supportBle(context);
+        boolean supportBle = BleManager.supportBle(context);
 
-        // Request BLE permissions. On Android 12 or higher devices, most BLE operations such
-        // as enabling Bluetooth, notifications, and write/read require these permissions, so
-        // this step is necessary. You can get all BLE permissions by BleManager#getBleRequiredPermissions().
+        // Request BLE permissions.
         List<String> permissions = BleManager.getBleRequiredPermissions();
-        if (list.size() > 0) { // Lower version may not require any permissions
+        if (list.size() > 0) {
             requestPermissions(permissions);
         }
-
-        // Is Bluetooth turned on?
-        BleManager.isBluetoothOn();
         
-        // If Bluetooth is turned off, you can call BleManager#enableBluetooth() to turn on
-        // bluetooth with a request dialog, and you will receive the result from the method
-        // onActivityResult() of this activity. Note that the method requires BLE permissions,
-        // so do not forget to request it and ensure all permissions have been granted.
+        // Turn on bluetooth
         boolean requestStart = BleManager.enableBluetooth(activity,requestCode);
         if(!requestStart) {
             // No BLE permissions or not support BLE
@@ -50,37 +53,30 @@ dependencies {
 
 ```java
 
-        // Scan or connection option is not necessary, if you don't set, The default
-        // configuration will be applied
-        BleManager.ScanOptions scanOptions = BleManager.ScanOptions
-                .newInstance()
-                .scanPeriod(10000)// scan timeout
-	            //.scanDeviceName("deviceName", true)   //  The second param indicates whether to enable fuzzy match
-                .scanDeviceName(null);
-
-        BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
-                .newInstance()
-                .connectionPeriod(12000);// connection timeout
-
         BleManager bleManager = BleManager
                         .getInstance()
-                        .setScanOptions(scanOptions)
-                        .setConnectionOptions(connOptions)
+                        .setGattOperationTimeout(600) // Gatt operation(like read/write) timeout, unit:ms
                         .setLog(true, "TAG")
                         .init(this.getApplication());
 
 ```
 
 ### 3.Scan
-On API23+ or higher devices, scan requires some permissions, so ensure all BLE permissions have been granted.
 ```java
-        bleManager.startScan(new BleScanCallback() {
+        // Config scanOptions
+        BleManager.ScanOptions scanOptions = BleManager.ScanOptions
+                .newInstance()
+                .scanPeriod(10000)// scan timeout, unit:ms
+                //.scanDeviceName("deviceName", true) // The second param indicates whether to enable fuzzy match
+                .scanDeviceName(null);
+
+        bleManager.startScan(scanOptions, new BleScanCallback() {
             @Override
             public void onScanning(BleDevice device, int rssi, byte[] scanRecord) {
                 String name = device.getName();
                 String address = device.getAddress();
                 
-                // We can use this API to parse scanRecord
+                // We can use BleManager#parseScanRecord to parse scanRecord
                 //BleScanRecord bleScanRecord = BleManager.parseScanRecord(scanRecord);
             }
 
@@ -100,7 +96,7 @@ On API23+ or higher devices, scan requires some permissions, so ensure all BLE p
                     case BleErrorCodes.BLUETOOTH_OFF:
                         // Bluetooth turned off
                         break;
-                    case BleErrorCodes.SCAN_PERMISSION_NOT_GRANTED:
+                    case BleErrorCodes.PERMISSION_MISSING:
                         // Scan permissions not granted
                         break;
                     case BleErrorCodes.SCAN_ALREADY_STARTED:
@@ -116,8 +112,9 @@ On API23+ or higher devices, scan requires some permissions, so ensure all BLE p
             }
         });
 
-        // Start scan with specified scanOptions
-        bleManager.startScan(scanOptions, bleScanCallback);
+
+        // Or use default ScanOptions to scan, you can call BleManager#setScanOptions() to set a default option
+        bleManager.startScan(bleScanCallback);
 
 ```
 
@@ -127,9 +124,14 @@ Once target remote device has been discovered you can use stopScan() to stop sca
 ```
 
 ### 4.Connect
-You can connect to remote device by device address or BleDevice object. Like scan, now connection also requires permissions.<br>
+You can connect to remote device by device address or BleDevice object.<br>
 **Note:** Android versions below 10 allow only one connection request at a time and queue all subsequent requests. In Android 10 and higher, the system groups connection requests for batched execution. That means, if Android versions below 10, we must wait for a callback for a previous connection before we initiate a new connection request
 ```java
+       BleManager.ConnectionOptions connOptions = BleManager.ConnectionOptions
+               .newInstance()
+               .autoConnect(false) // auto-connection
+               .retryWhenConnectionFailed(3, 5000) // retry if failed
+               .connectionTimeout(12000);// connection timeout
 
        BleConnectCallback bleConnectCallback = new BleConnectCallback() {
             @Override
@@ -153,13 +155,13 @@ You can connect to remote device by device address or BleDevice object. Like sca
                     case BleErrorCodes.BLUETOOTH_OFF:
                         // Bluetooth turned off
                         break;
-                    case BleErrorCodes.CONNECTION_PERMISSION_NOT_GRANTED:
+                    case BleErrorCodes.PERMISSION_MISSING:
                         // Connection permissions not granted
                         break;
                     case BleErrorCodes.CONNECTION_REACH_MAX_NUM:
                         // Max connection num reached
                         break;
-                    case BleErrorCodes.CONNECTION_TIMEOUT:
+                    case BleErrorCodes.TIMEOUT:
                         // Connection timed out
                         break;
                     case BleErrorCodes.CONNECTION_CANCELED:
@@ -170,30 +172,26 @@ You can connect to remote device by device address or BleDevice object. Like sca
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
-                        break
-                    default:
+                        break;
+                    default:// GATT error code, like BleErrorCodes.GATT_FAILURE
                         break;
                 }
             }
         };
 
-       bleManager.connect(bleDevice, bleConnectCallback);
+       bleManager.connect(bleDevice, connOptions, bleConnectCallback);
+       
+       bleManager.connect(address, connOptions, bleConnectCallback);
 
-       // Connect with mac address
-       bleManager.connect(address, bleConnectCallback);
-
-       // Second param:  Select a specified connection option
-       bleManager.connect(bleDevice, connectionOptions, connectCallback);
+       // Or use default ConnectionOptions, you can call BleManager#setConnectionOptions() to set a default option
+       bleManager.connect(bleDevice, connectCallback);
 ```
 
 Call one of the following methods to disconnect from remote device
 ```java
 
-       // Disconnect from the remote device by BleDevice object
+       // Disconnect from the remote device with BleDevice object, or mac address
        bleManager.disconnect(bleDevice);
-	   
-       // Disconnect from the remote device by address
-       bleManager.disconnect(address);
 
        // Disconnect from the remote device by address. The second param indicates whether 
        // to close BluetoothGatt immediately without waiting for the system disconnection 
@@ -237,6 +235,9 @@ Both notification and indication use the following method to set notification or
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
+                    default:
+                        // GATT error code, like BleErrorCodes.GATT_FAILURE
+                        break;
                 }
             }
         });
@@ -274,6 +275,9 @@ Call cancelNotify() to cancel notification or indication
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
+                        break;
+                    default:
+                        // GATT error code, like BleErrorCodes.GATT_FAILURE
                         break;
                 }
             }
@@ -314,6 +318,9 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
+                    default:
+                        // GATT error code, like BleErrorCodes.GATT_FAILURE
+                        break;
                 }
             }
         });
@@ -345,6 +352,9 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
+                    default:
+                        // GATT error code, like BleErrorCodes.GATT_FAILURE
+                        break;
                 }
             }
         });
@@ -359,9 +369,9 @@ You must call destroy() to release some resources after BLE communication end
        // destroy process. The second params indicates whether gatt-operation-callbacks(such 
        // as connect, read, write) should be invoked during the destroy process.Usually, in 
        // these callback, we will perform some operations such as updating UI and reconnecting.
-       // Before doing so, especially the params is true, we must ensure BleManger is not 
+       // Before doing this, especially the params is true, we must ensure BleManger is not 
        // destroyed by checking that BleManager#getContext() does not return null
-       // bleManager.destroy(true, true);
+       bleManager.destroy(true, true);
 ```
 
 ### Other api
@@ -369,6 +379,11 @@ You must call destroy() to release some resources after BLE communication end
 |------|-----------|
 |**readRssi**(BleDevice device, BleRssiCallback callback)|Read the remote device rssi(Received Signal Strength Indication)|
 |**setMtu**(BleDevice device, int mtu, BleMtuCallback callback)|Set MTU (Maximum Transmission Unit)|
+|**descriptorRead**(BleDevice device, UUID serviceUuid, UUID characteristicUuid, UUID descriptorUuid, BleDescriptorReadCallback callback)|Reads the value for a given descriptor from the associated remote device|
+|**descriptorWrite**(BleDevice device, UUID serviceUuid, UUID characteristicUuid, UUID descriptorUuid, byte[] data, BleDescriptorWriteCallback callback)|Write the value of a given descriptor to the associated remote device|
+|**readPhy**(BleDevice device, BlePhyReadCallback callback)|Read the current transmitter PHY and receiver PHY of the connection|
+|**setPreferencePhy**(BleDevice device, int txPhy, int rxPhy, int phyOptions, BlePhyPreferenceCallback callback)|Set the preferred connection PHY. This is just a recommendation, whether the PHY change will happen depends on other applications preferences, local and remote controller capabilities|
+|**requestConnectionPriority**(BleDevice device, int connPriority, BleConnectionPriorityCallback callback)|Request a connection parameter update|
 |isScanning()|Is Scanning?|
 |isConnected(String address)|Check if the local bluetooth has connected to the remote device|
 |isConnecting(String address)|Check if local device is connecting with the remote device|
@@ -389,7 +404,6 @@ You must call destroy() to release some resources after BLE communication end
 |*scanPermissionGranted(Context context)*|Check if scan permissions have been granted|
 |*connectionPermissionGranted(Context context)*|Check if connection permissions have been granted|
 |*enableBluetooth(Activity activity, int requestCode)*|Turn on local bluetooth, calling the method will show users a request dialog to grant or reject,so you can get the result from Activity#onActivityResult().<br>Note that on Android12 or higher devices, this method can work only under the condition that BLE permissions have been granted|
-|*toggleBluetooth(boolean enable)*|Turn on or off local bluetooth directly without showing users a request dialog.<br>Note that this method, like *enableBluetooth(Activity activity, int requestCode)*, also requires BLE permissions. In addition, now it may not work on some devices, especially high version devices|
 |getScanOptions()|Get the scan option you set or default|
 |getConnectOptions()|Get the connection option you set or default|
 |getBluetoothGatt(String address)|Get the BluetoothGatt object of specific remote device,it will return null if the connection isn't established|
