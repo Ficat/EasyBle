@@ -25,7 +25,7 @@ dependencies {
 |API version|Required Permissions|
 |------|-----------|
 |API31+|*"android.permission.BLUETOOTH_SCAN"*<br>*"android.permission.BLUETOOTH_CONNECT"*<br>*"android.permission.BLUETOOTH_ADVERTISE"*|
-|API29+|*"android.permission.ACCESS_FINE_LOCATION"*<br>*"android.permission.ACCESS_FINE_LOCATION"|
+|API29+|*"android.permission.ACCESS_FINE_LOCATION"*<br>*"android.permission.ACCESS_FINE_LOCATION"*|
 |API23+|*"android.permission.ACCESS_COARSE_LOCATION"* or <br>*"android.permission.ACCESS_FINE_LOCATION"*|
 |API22-| None|
 
@@ -232,6 +232,9 @@ Both notification and indication use the following method to set notification or
                     case BleErrorCodes.NOTIFICATION_OR_INDICATION_UNSUPPORTED:
                         // Characteristic not support notification or indication
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // Enable-notification operation timed out
+                        break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
@@ -272,6 +275,9 @@ Call cancelNotify() to cancel notification or indication
                         break;
                     case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
                         // Data length is greater than MTU
+                        break;
+                    case BleErrorCodes.TIMEOUT:
+                        // Write-characteristic operation timed out
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
@@ -315,6 +321,9 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
                     case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
                         // Data length(lengthPerPackage) is greater than MTU
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // Write-characteristic operation timed out
+                        break;
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
@@ -352,6 +361,9 @@ If the length of the data you wanna deliver to remote device is larger than MTU(
                     case BleErrorCodes.UNKNOWN:
                         // Unknown
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // Read-characteristic operation timed out
+                        break;
                     default:
                         // GATT error code, like BleErrorCodes.GATT_FAILURE
                         break;
@@ -374,7 +386,7 @@ You must call destroy() to release some resources after BLE communication end
        bleManager.destroy(true, true);
 ```
 
-### Other api
+### Other APIs
 |Method|Description|
 |------|-----------|
 |**readRssi**(BleDevice device, BleRssiCallback callback)|Read the remote device rssi(Received Signal Strength Indication)|

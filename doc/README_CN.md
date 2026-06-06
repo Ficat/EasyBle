@@ -23,8 +23,8 @@ dependencies {
 |API版本|所需权限|
 |------|-----------|
 |API31+|*"android.permission.BLUETOOTH_SCAN"*<br>*"android.permission.BLUETOOTH_CONNECT"*<br>*"android.permission.BLUETOOTH_ADVERTISE"*|
-|API29+|*"android.permission.ACCESS_FINE_LOCATION"*<br>*"android.permission.ACCESS_FINE_LOCATION"|
-|API23+|*"android.permission.ACCESS_COARSE_LOCATION"* or <br>*"android.permission.ACCESS_FINE_LOCATION"*|
+|API29+|*"android.permission.ACCESS_FINE_LOCATION"*<br>*"android.permission.ACCESS_FINE_LOCATION"*|
+|API23+|*"android.permission.ACCESS_COARSE_LOCATION"* 或 <br>*"android.permission.ACCESS_FINE_LOCATION"*|
 |API22-| None|
 
 ## Usage
@@ -168,7 +168,7 @@ dependencies {
                         break;
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
-                        break
+                        break;
                     default: // 其他GATT错误码，如BleErrorCodes.GATT_FAILURE或BleErrorCodes.GATT_INSUFFICIENT_AUTHORIZATION
                         break;
                 }
@@ -228,6 +228,9 @@ notify和indicate都使用以下方法
                     case BleErrorCodes.NOTIFICATION_OR_INDICATION_UNSUPPORTED:
                         // 特征不支持notify或indicate
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // 设置notify操作超时
+                        break;
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
                         break;
@@ -272,6 +275,9 @@ notify和indicate都使用以下方法
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // 特征写入操作超时
+                        break;
                     default:
                         // 其他GATT错误码，如BleErrorCodes.GATT_FAILURE
                         break;
@@ -310,6 +316,9 @@ notify和indicate都使用以下方法
                     case BleErrorCodes.DATA_LENGTH_GREATER_THAN_MTU:
                         // 数据长度(此处特指参数中的每包长度，即lengthPerPackage)超MTU长度
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // 特征写入操作超时
+                        break;
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
                         break;
@@ -347,6 +356,9 @@ notify和indicate都使用以下方法
                     case BleErrorCodes.UNKNOWN:
                         // 未知原因
                         break;
+                    case BleErrorCodes.TIMEOUT:
+                        // 特征读取超时
+                        break;
                     default:
                         // 其他GATT错误码，如BleErrorCodes.GATT_FAILURE
                         break;
@@ -366,7 +378,7 @@ notify和indicate都使用以下方法
        bleManager.destroy(true, true);
 ```
 
-### 其他api
+### 其他API
 |Method|Description|
 |------|-----------|
 |**readRssi**(BleDevice device, BleRssiCallback callback)|读取设备信号强度|
