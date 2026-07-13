@@ -1,10 +1,10 @@
 package com.ficat.easyble.scan;
 
-import java.util.UUID;
+import java.util.List;
+
 
 public interface BleScan<T> {
-    void startScan(long scanPeriod, String scanDeviceName, String scanDeviceAddress,
-                   UUID[] scanServiceUuids, boolean fuzzyDeviceName, T callback);
+    void startScan(long scanPeriod, List<BleScanFilter> scanFilters, T callback);
 
     void stopScan();
 

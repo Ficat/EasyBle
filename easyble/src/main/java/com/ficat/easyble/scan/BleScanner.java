@@ -36,10 +36,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     private ScanCallback mScanCallback;//SDK>=21 uses this scan callback
     private BleScanCallback mBleScanCallback;//all sdk version uses this scan callback
     private BluetoothLeScanner mBluetoothLeScanner;
-    private String mDeviceName;
-    private String mDeviceAddress;
-    private UUID[] mServiceUuids;
-    private boolean mFuzzyDeviceName;
+    private List<BleScanFilter> mScanFilters;
     private volatile boolean mScanning;
     private final Handler mHandler;
     private final Runnable mScanTimeoutRunnable = new Runnable() {
@@ -60,8 +57,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
     }
 
     @Override
-    public void startScan(long scanPeriod, String scanDeviceName, String scanDeviceAddress,
-                          UUID[] scanServiceUuids, boolean fuzzyDeviceName, final BleScanCallback callback) {
+    public void startScan(long scanPeriod, List<BleScanFilter> scanFilters, final BleScanCallback callback) {
         if (!BleManager.isBluetoothEnabled()) {
             callback.onScanFailed(BleErrorCodes.BLUETOOTH_OFF);
             return;
@@ -76,10 +72,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
                 return;
             }
             mBleScanCallback = callback;
-            mDeviceName = scanDeviceName;
-            mDeviceAddress = scanDeviceAddress;
-            mServiceUuids = scanServiceUuids;
-            mFuzzyDeviceName = !TextUtils.isEmpty(scanDeviceName) && fuzzyDeviceName;
+            mScanFilters = scanFilters;
             mScanning = sdkVersionLowerThan21() ? scanByOldApi() : scanByNewApi();
             if (mBleScanCallback != null) {
                 if (mScanning) {
@@ -117,10 +110,7 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             }
             // reset params
             mScanning = false;
-            mFuzzyDeviceName = false;
-            mDeviceName = null;
-            mDeviceAddress = null;
-            mServiceUuids = null;
+            mScanFilters = null;
             if (mBleScanCallback != null) {
                 if (callbackScanFinished) {
                     mBleScanCallback.onScanFinished();
@@ -158,18 +148,8 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
                 @Override
                 public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
-                    String name = device.getName();
-                    if (!TextUtils.isEmpty(mDeviceName)) {
-                        // Exact device name
-                        if (!mFuzzyDeviceName && !mDeviceName.equals(name)) {
-                            return;
-                        }
-                        // Fuzzy device name
-                        if (mFuzzyDeviceName && (TextUtils.isEmpty(name) || !name.contains(mDeviceName))) {
-                            return;
-                        }
-                    }
-                    if (!TextUtils.isEmpty(mDeviceAddress) && !mDeviceAddress.equals(device.getAddress())) {
+                    BleScanRecord bleScanRecord = BleScanRecord.parseFromBytes(scanRecord);
+                    if (!matchFilterList(device.getName(), device.getAddress(), bleScanRecord.getServiceUuids())) {
                         return;
                     }
                     if (mBleScanCallback != null) {
@@ -179,7 +159,16 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
                 }
             };
         }
-        return mBluetoothAdapter.startLeScan(mServiceUuids, mLeScanCallback);
+        UUID[] uuids = null;
+        if (mScanFilters != null) {
+            for (BleScanFilter filter : mScanFilters) {
+                if (filter.getServiceUuid() != null) {
+                    uuids = new UUID[]{filter.getServiceUuid()};
+                    break;
+                }
+            }
+        }
+        return mBluetoothAdapter.startLeScan(uuids, mLeScanCallback);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -194,19 +183,18 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
                 @Override
                 public void onScanResult(int callbackType, final ScanResult result) {
                     super.onScanResult(callbackType, result);
-                    if (!hasResultByFilterUuids(result)) {
-                        return;
-                    }
-                    String name = result.getDevice().getName();
-                    if (mFuzzyDeviceName && !TextUtils.isEmpty(mDeviceName) && (TextUtils.isEmpty(name) || !name.contains(mDeviceName))) {
+                    ScanRecord scanRecord = result.getScanRecord();
+                    BluetoothDevice device = result.getDevice();
+                    if (!matchFilterList(device.getName(), device.getAddress(),
+                            scanRecord == null ? null : scanRecord.getServiceUuids())) {
                         return;
                     }
                     if (mBleScanCallback == null) {
                         return;
                     }
-                    byte[] scanRecord = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
+                    byte[] scanBytes = (result.getScanRecord() == null) ? new byte[]{} : result.getScanRecord().getBytes();
                     BleDevice bleDevice = BleDeviceAccessor.newBleDevice(result.getDevice(), mAccessorKey);
-                    mBleScanCallback.onScanning(bleDevice, result.getRssi(), scanRecord);
+                    mBleScanCallback.onScanning(bleDevice, result.getRssi(), scanBytes);
                 }
 
                 @Override
@@ -248,48 +236,117 @@ public final class BleScanner implements BleScan<BleScanCallback>, BleManager.Bl
             mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
         }
 
+        List<ScanFilter> scanFilterList = new ArrayList<>();
+        List<BleScanFilter> onlyFilterFuzzyNameScanFilterList = new ArrayList<>();
+        if (mScanFilters != null) {
+            for (BleScanFilter filter : mScanFilters) {
+                String exactName = null, fuzzyName = null, address = null;
+                UUID uuid = null;
+                if (!TextUtils.isEmpty(filter.getDeviceName())) {
+                    if (filter.isFuzzyDeviceName()) {
+                        fuzzyName = filter.getDeviceName();
+                    } else {
+                        exactName = filter.getDeviceName();
+                    }
+                }
+                if (!TextUtils.isEmpty(filter.getDeviceAddress())) {
+                    address = filter.getDeviceAddress();
+                }
+                if (filter.getServiceUuid() != null) {
+                    uuid = filter.getServiceUuid();
+                }
+                if (!TextUtils.isEmpty(exactName) || !TextUtils.isEmpty(address) || uuid != null) {
+                    scanFilterList.add(new ScanFilter.Builder()
+                            .setDeviceName(exactName)
+                            .setDeviceAddress(address)
+                            .setServiceUuid(uuid == null ? null : new ParcelUuid(uuid))
+                            .build());
+                }
+                if (!TextUtils.isEmpty(fuzzyName) && TextUtils.isEmpty(address) && uuid == null) {
+                    onlyFilterFuzzyNameScanFilterList.add(filter);
+                }
+            }
+        }
+
         boolean isScreenOff = !Utils.isScreenOn(BleManager.getInstance().getContext());
         boolean isBackground = !Utils.isForeground(BleManager.getInstance().getContext());
-        boolean filterServiceUuids = mServiceUuids != null && mServiceUuids.length > 0;
-        boolean filterExactName = !mFuzzyDeviceName && !TextUtils.isEmpty(mDeviceName);
-        boolean filterAddress = !TextUtils.isEmpty(mDeviceAddress);
-        boolean hasFilter = filterServiceUuids || filterExactName || filterAddress;
 
-        if (isScreenOff && !hasFilter) {
-            Logger.w("The screen is off, the current scan has no filters, it may be suspended until the screen is turned on again");
+        // BluetoothLeScanner#startScan() does not support fuzzy name filters, so we must
+        // filter fuzzy names after receiving scan results, but these scan results have
+        // already been filtered once by the filter in BluetoothLeScanner#startScan(),
+        // to avoid this situation, once there is at least one BleScanFilter that only
+        // filters fuzzy names and screen is on (if screen-off and no any valid filter,
+        // scan may be suspended), we set an empty filter when calling
+        // BluetoothLeScanner#startScan() and handle all filters after receiving scan results
+        if (!onlyFilterFuzzyNameScanFilterList.isEmpty() && !isScreenOff) {
+            scanFilterList.clear();
+        }
+
+        if (isScreenOff && scanFilterList.isEmpty()) {
+            Logger.w("The screen is off, the current scan has no any valid filter, it" +
+                    " may be suspended until the screen is turned on again");
+        }
+
+        if (scanFilterList.isEmpty()) {
+            scanFilterList.add(new ScanFilter.Builder().build());
         }
 
         ScanSettings scanSettings = new ScanSettings.Builder()
                 .setScanMode((isScreenOff || isBackground) ? ScanSettings.SCAN_MODE_LOW_POWER : ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
 
-        List<ScanFilter> scanFilters = new ArrayList<>();
-        ScanFilter filter = new ScanFilter.Builder()
-                .setDeviceName(filterExactName ? mDeviceName : null)
-                .setDeviceAddress(mDeviceAddress)
-                .setServiceUuid(filterServiceUuids ? new ParcelUuid(mServiceUuids[0]) : null)
-                .build();
-        scanFilters.add(filter);
-
-        mBluetoothLeScanner.startScan(scanFilters, scanSettings, mScanCallback);
+        mBluetoothLeScanner.startScan(scanFilterList, scanSettings, mScanCallback);
         return true;
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private boolean hasResultByFilterUuids(ScanResult result) {
-        if (mServiceUuids == null || mServiceUuids.length <= 0) {//no filtered uuids
+
+    private boolean matchFilterList(String deviceName, String deviceAddress, List<ParcelUuid> serviceUuids) {
+        if (mScanFilters == null || mScanFilters.isEmpty()) {
             return true;
         }
-        ScanRecord scanRecord = result.getScanRecord();
-        if (scanRecord == null) {
-            return false;
+        for (BleScanFilter filter : mScanFilters) {
+            boolean match = true;
+
+            // Check device name
+            if (!TextUtils.isEmpty(filter.getDeviceName())) {
+                if (TextUtils.isEmpty(deviceName)) {
+                    match = false;
+                } else {
+                    if (filter.isFuzzyDeviceName()) {
+                        match = deviceName.contains(filter.getDeviceName());
+                    } else {
+                        match = deviceName.equals(filter.getDeviceName());
+                    }
+                }
+            }
+
+            // Check device address
+            if (match && !TextUtils.isEmpty(filter.getDeviceAddress())) {
+                match = filter.getDeviceAddress().equals(deviceAddress);
+            }
+
+            // Check service uuid
+            if (match && filter.getServiceUuid() != null) {
+                if (serviceUuids == null) {
+                    match = false;
+                } else {
+                    boolean uuidMatch = false;
+                    for (ParcelUuid pu : serviceUuids) {
+                        if (pu != null && filter.getServiceUuid().equals(pu.getUuid())) {
+                            uuidMatch = true;
+                            break;
+                        }
+                    }
+                    match = uuidMatch;
+                }
+            }
+
+            if (match) {
+                return true;
+            }
         }
-        List<ParcelUuid> serviceUuidList = new ArrayList<>();
-        for (UUID uuid : mServiceUuids) {
-            serviceUuidList.add(new ParcelUuid(uuid));
-        }
-        List<ParcelUuid> scanServiceUuids = result.getScanRecord().getServiceUuids();
-        return scanServiceUuids != null && scanServiceUuids.containsAll(serviceUuidList);
+
+        return false;
     }
 
     private boolean sdkVersionLowerThan21() {

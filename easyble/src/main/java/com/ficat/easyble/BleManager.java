@@ -33,11 +33,13 @@ import com.ficat.easyble.gatt.callback.BleWriteCallback;
 import com.ficat.easyble.scan.BleScan;
 import com.ficat.easyble.scan.BleScanAccessor;
 import com.ficat.easyble.scan.BleScanCallback;
+import com.ficat.easyble.scan.BleScanFilter;
 import com.ficat.easyble.scan.BleScanRecord;
 import com.ficat.easyble.utils.BluetoothGattUtils;
 import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.utils.Utils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -132,8 +134,7 @@ public final class BleManager {
         if (Build.VERSION.SDK_INT >= 24 && !Utils.isGpsOn(mContext)) {
             Logger.i("You'd better turn on GPS to avoid that scan doesn't work");
         }
-        mScan.startScan(options.mScanPeriod, options.mScanDeviceName, options.mScanDeviceAddress,
-                options.mScanServiceUuids, options.mFuzzyDeviceName, callback);
+        mScan.startScan(options.getScanPeriod(), options.getScanFilters(), callback);
     }
 
     /**
@@ -947,10 +948,8 @@ public final class BleManager {
 
     public static final class ScanOptions {
         private long mScanPeriod = 12000;
-        private String mScanDeviceName;
-        private String mScanDeviceAddress;
-        private UUID[] mScanServiceUuids;
-        private boolean mFuzzyDeviceName;
+        private final BleScanFilter.Builder mScanFilterBuilder = new BleScanFilter.Builder();
+        private List<BleScanFilter> mScanFilters;
 
         private ScanOptions() {
 
@@ -973,27 +972,111 @@ public final class BleManager {
             return this;
         }
 
+        /**
+         * Set scan filter name
+         *
+         * @param deviceName filter device name
+         * @return ScanOptions
+         * @deprecated Use {@link #addScanFilter(BleScanFilter)} instead
+         */
+        @Deprecated
         public ScanOptions scanDeviceName(String deviceName) {
             return scanDeviceName(deviceName, false);
         }
 
+        /**
+         * Set scan filter name
+         *
+         * @param deviceName filter device name
+         * @param fuzzy      is fuzzy?
+         * @return ScanOptions
+         * @deprecated Use {@link #addScanFilter(BleScanFilter)} instead
+         */
+        @Deprecated
         public ScanOptions scanDeviceName(String deviceName, boolean fuzzy) {
             if (fuzzy && TextUtils.isEmpty(deviceName)) {
                 Logger.w("You enabled fuzzy device name matching, but provided a null or empty deviceName");
             }
-            mScanDeviceName = deviceName;
-            mFuzzyDeviceName = fuzzy;
+            mScanFilterBuilder.setDeviceName(deviceName, fuzzy);
             return this;
         }
 
+        /**
+         * Set scan filter address
+         *
+         * @param deviceAddress filter address
+         * @return ScanOptions
+         * @deprecated Use {@link #addScanFilter(BleScanFilter)} instead
+         */
+        @Deprecated
         public ScanOptions scanDeviceAddress(String deviceAddress) {
-            mScanDeviceAddress = deviceAddress;
+            mScanFilterBuilder.setDeviceAddress(deviceAddress);
             return this;
         }
 
+        /**
+         * Set scan filter uuids
+         *
+         * @param serviceUuids filter uuids
+         * @return Deprecated
+         * @deprecated Use {@link #addScanFilter(BleScanFilter)} instead
+         */
+        @Deprecated
         public ScanOptions scanServiceUuids(UUID[] serviceUuids) {
-            mScanServiceUuids = serviceUuids;
+            if (serviceUuids != null && serviceUuids.length > 0) {
+                mScanFilterBuilder.setServiceUuid(serviceUuids[0]);
+            } else {
+                mScanFilterBuilder.setServiceUuid(null);
+            }
             return this;
+        }
+
+        public ScanOptions addScanFilter(BleScanFilter filter) {
+            if (filter == null) {
+                return this;
+            }
+            if (mScanFilters == null) {
+                mScanFilters = new ArrayList<>();
+            }
+            mScanFilters.add(filter);
+            return this;
+        }
+
+        public ScanOptions clearScanFilters() {
+            // Clear first filter
+            mScanFilterBuilder.setDeviceName(null)
+                    .setDeviceAddress(null)
+                    .setServiceUuid(null);
+
+            // Clear others
+            if (mScanFilters != null) {
+                mScanFilters.clear();
+                mScanFilters = null;
+            }
+
+            return this;
+        }
+
+        public List<BleScanFilter> getScanFilters() {
+            List<BleScanFilter> list = null;
+
+            // Add first filter
+            BleScanFilter filter = mScanFilterBuilder.build();
+            if (!TextUtils.isEmpty(filter.getDeviceName()) || !TextUtils.isEmpty(filter.getDeviceAddress()) ||
+                    filter.getServiceUuid() != null) {
+                list = new ArrayList<>();
+                list.add(filter);
+            }
+
+            // Add other list
+            if (mScanFilters != null && !mScanFilters.isEmpty()) {
+                if (list == null) {
+                    list = new ArrayList<>();
+                }
+                list.addAll(mScanFilters);
+            }
+
+            return list;
         }
 
         public long getScanPeriod() {
@@ -1001,15 +1084,19 @@ public final class BleManager {
         }
 
         public String getScanDeviceName() {
-            return mScanDeviceName;
+            return mScanFilterBuilder.build().getDeviceName();
         }
 
         public String getScanDeviceAddress() {
-            return mScanDeviceAddress;
+            return mScanFilterBuilder.build().getDeviceAddress();
         }
 
         public UUID[] getScanServiceUuids() {
-            return mScanServiceUuids;
+            UUID uuid = mScanFilterBuilder.build().getServiceUuid();
+            if (uuid == null) {
+                return null;
+            }
+            return new UUID[]{uuid};
         }
     }
 

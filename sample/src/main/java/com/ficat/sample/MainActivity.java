@@ -30,6 +30,7 @@ import android.widget.Toast;
 
 import com.ficat.easyble.BleDevice;
 import com.ficat.easyble.BleManager;
+import com.ficat.easyble.scan.BleScanFilter;
 import com.ficat.easyble.scan.BleScanRecord;
 import com.ficat.easyble.utils.Logger;
 import com.ficat.easyble.scan.BleScanCallback;
@@ -101,8 +102,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         BleManager.ConnectionOptions connectionOptions = BleManager.ConnectionOptions
                 .newInstance()
                 .autoConnect(true)
-                .retryWhenConnectionFailed(3,3000)
-                .connectionPeriod(12000); // connection period (connection timeout)
+                .retryWhenConnectionFailed(3, 3000)
+                .connectionTimeout(12000); // connection period (connection timeout)
 
         manager = BleManager
                 .getInstance()
@@ -190,22 +191,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Logger.e("Invalid service uuid=" + strUuid);
                 }
             }
-            boolean filterName = !TextUtils.isEmpty(strName);
-            boolean filterAddress = BleManager.isValidAddress(strAddress);
-            boolean filterUuid = uuid != null;
-            if (filterName || filterAddress || filterUuid) {
-                BleManager.ScanOptions opts = BleManager.getInstance().getScanOptions();
-                if (filterName) {
-                    opts.scanDeviceName(strName, cbFuzzy.isChecked());
-                }
-                if (filterAddress) {
-                    opts.scanDeviceAddress(strAddress);
-                }
-                if (filterUuid) {
-                    opts.scanServiceUuids(new UUID[]{uuid});
-                }
-                BleManager.getInstance().setScanOptions(opts);
-            }
+            BleManager.ScanOptions opts = BleManager.getInstance()
+                    .getScanOptions()
+                    .clearScanFilters()
+                    .addScanFilter(
+                            new BleScanFilter.Builder()
+                                    .setDeviceName(strName, cbFuzzy.isChecked())
+                                    .setDeviceAddress(strAddress)
+                                    .setServiceUuid(uuid)
+                                    .build()
+                    );
+            BleManager.getInstance().setScanOptions(opts);
         }
 
     }
