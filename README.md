@@ -17,7 +17,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.Ficat:EasyBle:v3.4.0'
+    implementation 'com.github.Ficat:EasyBle:v3.5.0'
 }
 ```
 
@@ -67,8 +67,14 @@ dependencies {
         BleManager.ScanOptions scanOptions = BleManager.ScanOptions
                 .newInstance()
                 .scanPeriod(10000)// scan timeout, unit:ms
-                //.scanDeviceName("deviceName", true) // The second param indicates whether to enable fuzzy match
-                .scanDeviceName(null);
+                //.scanDeviceName("deviceName") // old API, use addScanFilter()
+                .addScanFilter( // call multiple times to set multiple filters
+                        new BleScanFilter.Builder()
+                                .setDeviceName(strName, false)// The second param indicates whether to enable fuzzy match
+                                .setDeviceAddress(strAddress)
+                                .setServiceUuid(uuid)
+                                .build()
+                );
 
         bleManager.startScan(scanOptions, new BleScanCallback() {
             @Override
